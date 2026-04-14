@@ -3,33 +3,26 @@ export const runtime = 'edge'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-/**
- * Called right after client-side signInWithPassword succeeds.
- * Receives the access token directly (avoids cookie-propagation timing issues).
- * Determines redirect target:
- *   - super-admin  → { redirect: 'super-admin' }
- *   - normal user  → { redirect: 'groups', groups: [...] }
- */
 export async function POST(req: Request) {
   const { accessToken } = await req.json()
-
   if (!accessToken) {
     return NextResponse.json({ redirect: 'login' }, { status: 401 })
   }
 
-  // Create a client authenticated with the user's own token — reliable immediately after login
+  // Use service role client: auth.getUser(token) verifies the JWT directly,
+  // then service role bypasses RLS for profile/membership queries.
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${accessToken}` } } }
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  // Verify the access token — returns null if invalid/expired
+  const { data: { user }, error: userError } = await supabase.auth.getUser(accessToken)
+  if (!user || userError) {
     return NextResponse.json({ redirect: 'login' }, { status: 401 })
   }
 
-  // Check super-admin
+  // Check super-admin (service role bypasses RLS, always returns the row)
   const { data: profile } = await supabase
     .from('profiles')
     .select('is_super_admin')
