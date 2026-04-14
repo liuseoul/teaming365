@@ -64,16 +64,17 @@ const EMPTY_FORM: EditForm = {
 }
 
 export default function ProjectList({
-  projects, profile, groupId, groupName,
+  projects, profile, groupId, groupName, subdomain,
 }: {
   projects: any[]
   profile: any
   groupId: string
   groupName: string
+  subdomain: string
 }) {
   const supabase   = createClient()
   const router     = useRouter()
-  const isAdmin    = profile?.role === 'admin'
+  const isAdmin    = ['first_admin', 'second_admin'].includes(profile?.role || '')
 
   const [filter,     setFilter]     = useState('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -162,7 +163,7 @@ export default function ProjectList({
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar profile={profile} groupId={groupId} groupName={groupName} />
+      <Sidebar profile={profile} groupId={groupId} groupName={groupName} subdomain={subdomain} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
@@ -170,7 +171,7 @@ export default function ProjectList({
           <h1 className="text-lg font-semibold text-gray-900">项目概览</h1>
           {isAdmin && (
             <button
-              onClick={() => router.push('/admin')}
+              onClick={() => router.push(`/${subdomain}/admin`)}
               className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white
                          text-sm font-medium px-4 py-2 rounded-lg transition-colors duration-150"
             >

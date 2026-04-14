@@ -11,19 +11,33 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: '未启动',
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  first_admin:  '一级管理员',
+  second_admin: '二级管理员',
+  member:       '成员',
+}
+
+const ROLE_COLORS: Record<string, string> = {
+  first_admin:  'bg-purple-100 text-purple-700',
+  second_admin: 'bg-blue-100 text-blue-700',
+  member:       'bg-gray-100 text-gray-600',
+}
+
 export default function AdminDashboard({
-  profile, projects, members, groupId, group, allGroups,
+  profile, projects, members, groupId, group, subdomain,
 }: {
   profile: any
   projects: any[]
   members: any[]
   groupId: string
   group: { id: string; name: string; description: string }
-  allGroups: any[]
+  subdomain: string
 }) {
   const router = useRouter()
   const supabase = createClient()
-  const [tab, setTab] = useState<'projects' | 'members' | 'groups'>('projects')
+
+  const isFirstAdmin = profile?.role === 'first_admin'
+  const [tab, setTab] = useState<'projects' | 'members'>('projects')
 
   // ── 新建项目 ────────────────────────────────────────────
   const [projName,      setProjName]      = useState('')
@@ -39,7 +53,7 @@ export default function AdminDashboard({
 
   // ── 新建成员 ────────────────────────────────────────────
   const [memName,     setMemName]     = useState('')
-  const [memUsername, setMemUsername] = useState('')
+  const [memEmail,    setMemEmail]    = useState('')
   const [memPassword, setMemPassword] = useState('')
   const [memRole,     setMemRole]     = useState('member')
   const [memSaving,   setMemSaving]   = useState(false)
@@ -51,11 +65,9 @@ export default function AdminDashboard({
   const [resetSaving, setResetSaving] = useState(false)
   const [resetMsg,    setResetMsg]    = useState('')
 
-  // ── 新建团队 ────────────────────────────────────────────
-  const [grpName,    setGrpName]    = useState('')
-  const [grpDesc,    setGrpDesc]    = useState('')
-  const [grpSaving,  setGrpSaving]  = useState(false)
-  const [grpMsg,     setGrpMsg]     = useState('')
+  // ── 移除成员 ────────────────────────────────────────────
+  const [removeSaving, setRemoveSaving] = useState<string | null>(null)
+  const [removeMsg,    setRemoveMsg]    = useState('')
 
   function addCollabParty() { setCollabParties([...collabParties, '']) }
   function updateCollabParty(i: number, v: string) {
@@ -96,21 +108,21 @@ export default function AdminDashboard({
   }
 
   async function createMember() {
-    if (!memName.trim() || !memUsername.trim() || !memPassword) {
-      setMemMsg('❌ 姓名、用户名、密码均为必填'); return
+    if (!memName.trim() || !memEmail.trim() || !memPassword) {
+      setMemMsg('❌ 姓名、邮箱、密码均为必填'); return
     }
     setMemSaving(true); setMemMsg('')
     const res = await fetch('/api/admin/create-member', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: memName.trim(), username: memUsername.trim(), password: memPassword, role: memRole, groupId }),
+      body: JSON.stringify({ name: memName.trim(), email: memEmail.trim(), password: memPassword, role: memRole, groupId }),
     })
     const json = await res.json()
     if (!res.ok) {
       setMemMsg(`❌ ${json.error || '创建失败'}`)
     } else {
       setMemMsg('✅ 成员已创建')
-      setMemName(''); setMemUsername(''); setMemPassword(''); setMemRole('member')
+      setMemName(''); setMemEmail(''); setMemPassword(''); setMemRole('member')
       setTimeout(() => router.refresh(), 800)
     }
     setMemSaving(false)
@@ -131,43 +143,42 @@ export default function AdminDashboard({
     setResetSaving(false)
   }
 
-  async function createGroup() {
-    if (!grpName.trim()) { setGrpMsg('❌ 团队名称为必填'); return }
-    setGrpSaving(true); setGrpMsg('')
-    const res = await fetch('/api/admin/create-group', {
+  async function removeMember(memberId: string, memberName: string) {
+    if (!confirm(`确认将"${memberName}"从团队中移除？此操作不可恢复。`)) return
+    setRemoveSaving(memberId); setRemoveMsg('')
+    const res = await fetch('/api/admin/remove-member', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: grpName.trim(), description: grpDesc.trim() }),
+      body: JSON.stringify({ memberId, groupId }),
     })
     const json = await res.json()
     if (!res.ok) {
-      setGrpMsg(`❌ ${json.error || '创建失败'}`)
+      setRemoveMsg(`❌ ${json.error || '操作失败'}`)
     } else {
-      setGrpMsg('✅ 团队已创建')
-      setGrpName(''); setGrpDesc('')
-      setTimeout(() => router.refresh(), 800)
+      setTimeout(() => router.refresh(), 400)
     }
-    setGrpSaving(false)
+    setRemoveSaving(null)
   }
-
-  const domain = process.env.NEXT_PUBLIC_EMAIL_DOMAIN || 'company.internal'
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar profile={profile} groupId={groupId} groupName={group.name} />
+      <Sidebar profile={profile} groupId={groupId} groupName={group.name} subdomain={subdomain} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex items-center px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
           <h1 className="text-lg font-semibold text-gray-900">管理后台</h1>
           <span className="ml-3 text-sm text-gray-400">· {group.name}</span>
+          <span className={`ml-3 text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[profile?.role] || ''}`}>
+            {ROLE_LABELS[profile?.role] || profile?.role}
+          </span>
         </div>
 
         <div className="flex border-b border-gray-200 bg-white px-6 flex-shrink-0">
-          {(['projects', 'members', 'groups'] as const).map(key => (
+          {(['projects', 'members'] as const).map(key => (
             <button key={key} onClick={() => setTab(key)}
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors
                 ${tab === key ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              {key === 'projects' ? '项目管理' : key === 'members' ? '成员管理' : '团队管理'}
+              {key === 'projects' ? '项目管理' : '成员管理'}
             </button>
           ))}
         </div>
@@ -278,14 +289,9 @@ export default function AdminDashboard({
                       placeholder="显示名称" className="input-field" />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">用户名 *</label>
-                    <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-teal-500">
-                      <input value={memUsername} onChange={e => setMemUsername(e.target.value)}
-                        placeholder="username" className="flex-1 px-3 py-2 text-sm outline-none" />
-                      <span className="bg-gray-50 border-l border-gray-300 px-3 py-2 text-xs text-gray-500 flex-shrink-0">
-                        @{domain}
-                      </span>
-                    </div>
+                    <label className="block text-sm text-gray-700 mb-1">邮箱 *</label>
+                    <input type="email" value={memEmail} onChange={e => setMemEmail(e.target.value)}
+                      placeholder="member@example.com" className="input-field" />
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">初始密码 *</label>
@@ -295,8 +301,8 @@ export default function AdminDashboard({
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">角色</label>
                     <select value={memRole} onChange={e => setMemRole(e.target.value)} className="input-field">
-                      <option value="member">团队成员</option>
-                      <option value="admin">管理员</option>
+                      <option value="member">成员</option>
+                      {isFirstAdmin && <option value="second_admin">二级管理员</option>}
                     </select>
                   </div>
                 </div>
@@ -332,83 +338,47 @@ export default function AdminDashboard({
                 <h2 className="text-base font-semibold text-gray-900 mb-4">
                   成员列表 <span className="text-gray-400 font-normal text-sm">（{members.length} 人）</span>
                 </h2>
+                {removeMsg && <p className="mb-3 text-sm">{removeMsg}</p>}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200 text-left">
                         <th className="pb-2 text-xs font-medium text-gray-500">姓名</th>
-                        <th className="pb-2 text-xs font-medium text-gray-500">用户名</th>
+                        <th className="pb-2 text-xs font-medium text-gray-500">邮箱</th>
                         <th className="pb-2 text-xs font-medium text-gray-500">角色</th>
                         <th className="pb-2 text-xs font-medium text-gray-500">加入时间</th>
+                        {isFirstAdmin && <th className="pb-2 text-xs font-medium text-gray-500">操作</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {members.map((m: any) => (
                         <tr key={m.id} className="border-b border-gray-100 last:border-0">
                           <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
-                          <td className="py-2.5 text-gray-500">{m.email.replace(`@${domain}`, '')}</td>
+                          <td className="py-2.5 text-gray-500 text-xs">{m.email}</td>
                           <td className="py-2.5">
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${m.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
-                              {m.role === 'admin' ? '管理员' : '成员'}
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_COLORS[m.role] || 'bg-gray-100 text-gray-600'}`}>
+                              {ROLE_LABELS[m.role] || m.role}
                             </span>
                           </td>
                           <td className="py-2.5 text-gray-400 text-xs">
                             {new Date(m.created_at).toLocaleDateString('zh-CN')}
                           </td>
+                          {isFirstAdmin && (
+                            <td className="py-2.5">
+                              {m.id !== profile?.id && m.role !== 'first_admin' && (
+                                <button
+                                  onClick={() => removeMember(m.id, m.name)}
+                                  disabled={removeSaving === m.id}
+                                  className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded border border-red-200 hover:border-red-400 transition-colors disabled:opacity-50">
+                                  {removeSaving === m.id ? '移除中…' : '移除'}
+                                </button>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </div>
-              </section>
-            </div>
-          )}
-
-          {/* ──────── 团队管理 ──────── */}
-          {tab === 'groups' && (
-            <div className="max-w-3xl space-y-6">
-              <section className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">新建团队</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-sm text-gray-700 mb-1">团队名称 *</label>
-                    <input value={grpName} onChange={e => setGrpName(e.target.value)}
-                      placeholder="团队名称" className="input-field" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm text-gray-700 mb-1">团队描述</label>
-                    <input value={grpDesc} onChange={e => setGrpDesc(e.target.value)}
-                      placeholder="简短描述（可选）" className="input-field" />
-                  </div>
-                </div>
-                {grpMsg && <p className="mt-3 text-sm">{grpMsg}</p>}
-                <button onClick={createGroup} disabled={grpSaving} className="mt-4 btn-primary">
-                  {grpSaving ? '创建中…' : '创建团队'}
-                </button>
-              </section>
-
-              <section className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">
-                  所有团队 <span className="text-gray-400 font-normal text-sm">（{allGroups.length} 个）</span>
-                </h2>
-                <div className="space-y-2">
-                  {allGroups.map((g: any) => (
-                    <div key={g.id} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
-                      <div>
-                        <div className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                          {g.name}
-                          {g.id === groupId && (
-                            <span className="text-xs bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full font-normal">当前</span>
-                          )}
-                        </div>
-                        {g.description && <div className="text-xs text-gray-500 mt-0.5">{g.description}</div>}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {new Date(g.created_at).toLocaleDateString('zh-CN')}
-                      </div>
-                    </div>
-                  ))}
-                  {allGroups.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">暂无团队</p>}
                 </div>
               </section>
             </div>

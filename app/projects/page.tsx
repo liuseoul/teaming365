@@ -4,53 +4,50 @@ export const runtime = 'edge'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
-import ProjectList from '@/components/ProjectList'
 
-export default async function ProjectsPage() {
+/**
+ * Legacy redirect: /projects → /{subdomain}/projects
+ * Also handles super-admin → /super-admin
+ */
+export default async function ProjectsRedirect() {
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const cookieStore = await cookies()
-  const groupId = cookieStore.get('qt_group')?.value
-  if (!groupId) redirect('/login')
-
-  // Verify membership & get role for this group
-  const { data: membership } = await supabase
-    .from('group_members')
-    .select('role')
-    .eq('group_id', groupId)
-    .eq('user_id', user.id)
+  // Super-admin goes to their dashboard
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_super_admin')
+    .eq('id', user.id)
     .single()
 
-  if (!membership) redirect('/login')
+  if (profile?.is_super_admin) redirect('/super-admin')
 
-  const [{ data: profile }, { data: group }] = await Promise.all([
-    supabase.from('profiles').select('id, name').eq('id', user.id).single(),
-    supabase.from('groups').select('id, name').eq('id', groupId).single(),
-  ])
+  // Regular user: look up group from cookie
+  const cookieStore = await cookies()
+  const groupId = cookieStore.get('qt_group')?.value
 
-  // Role is group-scoped, not global
-  const effectiveProfile = { ...(profile || {}), id: user.id, role: membership.role }
+  if (groupId) {
+    const { data: group } = await supabase
+      .from('groups')
+      .select('subdomain')
+      .eq('id', groupId)
+      .single()
 
-  const { data: projects } = await supabase
-    .from('projects')
-    .select(`
-      id, name, client, description, status, created_at, updated_at,
-      agreement_party, service_fee_currency, service_fee_amount, collaboration_parties,
-      work_records(id, created_at, deleted, profiles!work_records_author_id_fkey(name)),
-      time_logs(id, started_at, finished_at, deleted, profiles!time_logs_member_id_fkey(name))
-    `)
-    .eq('group_id', groupId)
-    .order('created_at', { ascending: false })
+    if (group?.subdomain) redirect(`/${group.subdomain}/projects`)
+  }
 
-  return (
-    <ProjectList
-      projects={projects || []}
-      profile={effectiveProfile}
-      groupId={groupId}
-      groupName={group?.name || ''}
-    />
-  )
+  // Fallback: find any group this user is in
+  const { data: membership } = await supabase
+    .from('group_members')
+    .select('group_id, groups(subdomain)')
+    .eq('user_id', user.id)
+    .limit(1)
+    .single()
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const subdomain = (membership as any)?.groups?.subdomain
+  if (subdomain) redirect(`/${subdomain}/projects`)
+
+  redirect('/login')
 }

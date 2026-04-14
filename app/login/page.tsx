@@ -3,42 +3,57 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-type Group = { id: string; name: string; description: string; role: string }
+type Group = { id: string; name: string; description: string; role: string; subdomain: string | null }
 
 export default function LoginPage() {
   const router = useRouter()
-  const [step, setStep]       = useState<'login' | 'group'>('login')
-  const [username, setUsername] = useState('')
+  const [step, setStep]     = useState<'login' | 'group'>('login')
+  const [email, setEmail]   = useState('')
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState('')
   const [loading,  setLoading]  = useState(false)
   const [groups,   setGroups]   = useState<Group[]>([])
 
   async function handleLogin() {
-    if (!username.trim() || !password) {
-      setError('请输入用户名和密码。')
+    if (!email.trim() || !password) {
+      setError('请输入邮箱和密码。')
       return
     }
     setLoading(true)
     setError('')
 
     const supabase = createClient()
-    const domain = process.env.NEXT_PUBLIC_EMAIL_DOMAIN || 'company.internal'
-    const email = `${username.trim()}@${domain}`
 
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    })
 
     if (authError) {
-      setError('用户名或密码错误，请联系管理员。')
+      setError('邮箱或密码错误，请联系管理员。')
       setLoading(false)
       return
     }
 
-    // Fetch groups the user belongs to
     const { data: { user: authedUser } } = await supabase.auth.getUser()
+
+    // Check super-admin
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_super_admin')
+      .eq('id', authedUser!.id)
+      .single()
+
+    if (profile?.is_super_admin) {
+      router.push('/super-admin')
+      router.refresh()
+      return
+    }
+
+    // Fetch groups the user belongs to
     const { data: membership } = await supabase
       .from('group_members')
-      .select('role, groups(id, name, description)')
+      .select('role, groups(id, name, description, subdomain)')
       .eq('user_id', authedUser!.id)
       .order('created_at', { ascending: true })
 
@@ -49,6 +64,7 @@ export default function LoginPage() {
         name:        m.groups?.name        || '',
         description: m.groups?.description || '',
         role:        m.role,
+        subdomain:   m.groups?.subdomain   || null,
       }))
       .filter(g => g.id)
 
@@ -60,7 +76,7 @@ export default function LoginPage() {
     }
 
     if (userGroups.length === 1) {
-      doSelectGroup(userGroups[0].id)
+      doSelectGroup(userGroups[0])
       return
     }
 
@@ -70,9 +86,13 @@ export default function LoginPage() {
     setStep('group')
   }
 
-  function doSelectGroup(groupId: string) {
-    document.cookie = `qt_group=${groupId}; path=/; max-age=86400; SameSite=Lax`
-    router.push('/projects')
+  function doSelectGroup(group: Group) {
+    document.cookie = `qt_group=${group.id}; path=/; max-age=86400; SameSite=Lax`
+    if (group.subdomain) {
+      router.push(`/${group.subdomain}/projects`)
+    } else {
+      router.push('/projects')
+    }
     router.refresh()
   }
 
@@ -97,7 +117,7 @@ export default function LoginPage() {
             {groups.map(g => (
               <button
                 key={g.id}
-                onClick={() => doSelectGroup(g.id)}
+                onClick={() => doSelectGroup(g)}
                 className="w-full text-left px-4 py-3 rounded-xl border-2 border-gray-200
                            hover:border-teal-500 hover:bg-teal-50 transition-all duration-150 group"
               >
@@ -109,8 +129,12 @@ export default function LoginPage() {
                     )}
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ml-3
-                    ${g.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {g.role === 'admin' ? '管理员' : '成员'}
+                    ${g.role === 'first_admin' ? 'bg-purple-100 text-purple-700'
+                    : g.role === 'second_admin' ? 'bg-blue-100 text-blue-700'
+                    : 'bg-gray-100 text-gray-600'}`}>
+                    {g.role === 'first_admin' ? '一级管理员'
+                      : g.role === 'second_admin' ? '二级管理员'
+                      : '成员'}
                   </span>
                 </div>
               </button>
@@ -134,20 +158,21 @@ export default function LoginPage() {
             <span className="text-white text-2xl font-bold">Q</span>
           </div>
           <h1 className="text-white text-2xl font-semibold">趋境团</h1>
-          <p className="text-slate-400 text-sm mt-1">使用内部账号登录</p>
+          <p className="text-slate-400 text-sm mt-1">请使用邮箱账号登录</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
               <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="输入用户名"
+                placeholder="your@email.com"
                 autoFocus
+                autoComplete="email"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm
                            focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent
                            placeholder:text-gray-400"
@@ -162,6 +187,7 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="输入密码"
+                autoComplete="current-password"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm
                            focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent
                            placeholder:text-gray-400"

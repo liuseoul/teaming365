@@ -14,12 +14,11 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: '未授权' }, { status: 401 })
 
-  // Get caller's group from request body
-  const { name, username, password, role, groupId } = await req.json()
+  const { name, email, password, role, groupId } = await req.json()
 
   if (!groupId) return NextResponse.json({ error: '缺少团队参数' }, { status: 400 })
 
-  // Verify caller is admin of this group
+  // Verify caller is first_admin or second_admin of this group
   const { data: caller } = await supabase
     .from('group_members')
     .select('role')
@@ -27,28 +26,36 @@ export async function POST(req: Request) {
     .eq('user_id', user.id)
     .single()
 
-  if (caller?.role !== 'admin') {
+  if (!caller || !['first_admin', 'second_admin'].includes(caller.role)) {
     return NextResponse.json({ error: '仅管理员可操作' }, { status: 403 })
   }
 
-  if (!name || !username || !password) {
-    return NextResponse.json({ error: '姓名、用户名、密码均为必填' }, { status: 400 })
+  // Role assignment rules: second_admin can only create 'member'
+  const assignedRole = role || 'member'
+  if (caller.role === 'second_admin' && assignedRole !== 'member') {
+    return NextResponse.json({ error: '二级管理员只能创建普通成员' }, { status: 403 })
+  }
+  if (!['second_admin', 'member'].includes(assignedRole)) {
+    return NextResponse.json({ error: '无效的角色' }, { status: 400 })
   }
 
-  const domain = process.env.NEXT_PUBLIC_EMAIL_DOMAIN || 'company.internal'
-  const email = `${username.trim()}@${domain}`
+  if (!name || !email || !password) {
+    return NextResponse.json({ error: '姓名、邮箱、密码均为必填' }, { status: 400 })
+  }
+
+  const normalizedEmail = email.trim().toLowerCase()
 
   // Create auth user
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
-    email,
+    email: normalizedEmail,
     password,
     email_confirm: true,
-    user_metadata: { name, role: role || 'member' },
+    user_metadata: { name: name.trim(), role: assignedRole },
   })
 
   if (error) {
     return NextResponse.json(
-      { error: error.message.includes('already') ? '该用户名已存在' : error.message },
+      { error: error.message.includes('already') ? '该邮箱已被注册' : error.message },
       { status: 400 }
     )
   }
@@ -56,16 +63,16 @@ export async function POST(req: Request) {
   // Upsert profile
   await supabaseAdmin.from('profiles').upsert({
     id:    data.user.id,
-    name,
-    email,
-    role:  role || 'member',
+    name:  name.trim(),
+    email: normalizedEmail,
+    role:  assignedRole,
   })
 
   // Add to group
   const { error: memberError } = await supabaseAdmin.from('group_members').insert({
     group_id: groupId,
     user_id:  data.user.id,
-    role:     role || 'member',
+    role:     assignedRole,
   })
 
   if (memberError) {

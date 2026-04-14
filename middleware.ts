@@ -29,12 +29,15 @@ export async function middleware(req: NextRequest) {
     )
 
     const { data: { user } } = await supabase.auth.getUser()
-    const isLoginPage = req.nextUrl.pathname === '/login'
+    const { pathname } = req.nextUrl
+    const isLoginPage = pathname === '/login'
 
     if (!user && !isLoginPage) {
       return NextResponse.redirect(new URL('/login', req.url))
     }
     if (user && isLoginPage) {
+      // Redirect authenticated users away from login.
+      // /projects acts as the smart dispatcher (super-admin → /super-admin, else → subdomain)
       return NextResponse.redirect(new URL('/projects', req.url))
     }
   } catch {

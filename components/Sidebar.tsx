@@ -51,6 +51,7 @@ interface SidebarProps {
   profile: { id: string; name: string; role: string } | null
   groupId: string
   groupName: string
+  subdomain: string
 }
 
 function fmtTime(t: string | null) { return t ? t.slice(0, 5) : '' }
@@ -180,12 +181,12 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator }
   )
 }
 
-export default function Sidebar({ profile, groupId, groupName }: SidebarProps) {
+export default function Sidebar({ profile, groupId, groupName, subdomain }: SidebarProps) {
   const router   = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
 
-  const isAdmin    = profile?.role === 'admin'
+  const isAdmin    = ['first_admin', 'second_admin'].includes(profile?.role || '')
   const todayStr   = new Date().toISOString().split('T')[0]
 
   const [currentUserId,   setCurrentUserId]   = useState<string | null>(null)
@@ -268,10 +269,16 @@ export default function Sidebar({ profile, groupId, groupName }: SidebarProps) {
     setMyGroups((data || []).map((m: any) => ({ id: m.groups?.id || '', name: m.groups?.name || '' })).filter(g => g.id))
   }
 
-  function switchGroup(gid: string) {
+  async function switchGroup(gid: string) {
     document.cookie = `qt_group=${gid}; path=/; max-age=86400; SameSite=Lax`
     setShowGroupPicker(false)
-    router.push('/projects')
+    // Look up the subdomain for the new group
+    const { data: grp } = await supabase.from('groups').select('subdomain').eq('id', gid).single()
+    if (grp?.subdomain) {
+      router.push(`/${grp.subdomain}/projects`)
+    } else {
+      router.push('/projects')
+    }
     router.refresh()
   }
 
@@ -416,7 +423,8 @@ export default function Sidebar({ profile, groupId, groupName }: SidebarProps) {
   async function handleLogout() {
     await supabase.auth.signOut()
     document.cookie = 'qt_group=; path=/; max-age=0'
-    router.push('/login'); router.refresh()
+    router.push('/login')
+    router.refresh()
   }
 
   // ── Inner render helpers ──────────────────────────────────
@@ -556,8 +564,8 @@ export default function Sidebar({ profile, groupId, groupName }: SidebarProps) {
         {/* Navigation */}
         <nav className="px-3 py-3 space-y-1 border-b border-gray-200 flex-shrink-0">
           {[
-            { href: '/projects', label: '项目概览', icon: '📋' },
-            ...(isAdmin ? [{ href: '/admin', label: '管理后台', icon: '⚙️' }] : []),
+            { href: `/${subdomain}/projects`, label: '项目概览', icon: '📋' },
+            ...(isAdmin ? [{ href: `/${subdomain}/admin`, label: '管理后台', icon: '⚙️' }] : []),
           ].map(item => (
             <button key={item.href} onClick={() => router.push(item.href)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors duration-150 text-left
@@ -643,7 +651,11 @@ export default function Sidebar({ profile, groupId, groupName }: SidebarProps) {
         <div className="px-3 py-4 border-t border-gray-200 flex-shrink-0">
           <div className="px-3 py-2 mb-1">
             <div className="text-sm font-medium text-gray-900 truncate">{profile?.name || 'User'}</div>
-            <div className="text-xs text-gray-400 mt-0.5">{isAdmin ? '管理员' : '成员'}</div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              {profile?.role === 'first_admin' ? '一级管理员'
+                : profile?.role === 'second_admin' ? '二级管理员'
+                : '成员'}
+            </div>
           </div>
           <button onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-150">
