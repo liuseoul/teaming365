@@ -37,36 +37,24 @@ export default function LoginPage() {
 
     const { data: { user: authedUser } } = await supabase.auth.getUser()
 
-    // Check super-admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_super_admin')
-      .eq('id', authedUser!.id)
-      .single()
+    // Use a dedicated API to determine where to redirect after login.
+    // This avoids session-timing issues when querying profiles client-side
+    // immediately after signInWithPassword.
+    const res = await fetch('/api/auth/post-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: authedUser!.id }),
+    })
+    const json = await res.json()
 
-    if (profile?.is_super_admin) {
+    if (json.redirect === 'super-admin') {
       router.push('/super-admin')
       router.refresh()
       return
     }
 
-    // Fetch groups the user belongs to
-    const { data: membership } = await supabase
-      .from('group_members')
-      .select('role, groups(id, name, description, subdomain)')
-      .eq('user_id', authedUser!.id)
-      .order('created_at', { ascending: true })
-
-    const userGroups: Group[] = (membership || [])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((m: any) => ({
-        id:          m.groups?.id          || '',
-        name:        m.groups?.name        || '',
-        description: m.groups?.description || '',
-        role:        m.role,
-        subdomain:   m.groups?.subdomain   || null,
-      }))
-      .filter(g => g.id)
+    // json.groups contains the user's groups (may be empty)
+    const userGroups: Group[] = json.groups || []
 
     if (userGroups.length === 0) {
       setError('您尚未加入任何团队，请联系管理员。')
