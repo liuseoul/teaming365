@@ -35,9 +35,11 @@ export default function LoginPage() {
     }
 
     // Fetch groups the user belongs to
+    const { data: { user: authedUser } } = await supabase.auth.getUser()
     const { data: membership } = await supabase
       .from('group_members')
       .select('role, groups(id, name, description)')
+      .eq('user_id', authedUser!.id)
       .order('created_at', { ascending: true })
 
     const userGroups: Group[] = (membership || [])
