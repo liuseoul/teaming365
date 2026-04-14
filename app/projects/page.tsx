@@ -2,20 +2,28 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'edge'
 
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 
 /**
- * Legacy redirect: /projects → /{subdomain}/projects
- * Also handles super-admin → /super-admin
+ * Smart dispatcher — redirects to the correct destination:
+ *   super-admin  → /super-admin
+ *   group member → /[subdomain]/projects
+ *   no group     → /login
  */
 export default async function ProjectsRedirect() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Super-admin goes to their dashboard
-  const { data: profile } = await supabase
+  // Use service role to check is_super_admin (bypasses RLS + schema cache)
+  const admin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data: profile } = await admin
     .from('profiles')
     .select('is_super_admin')
     .eq('id', user.id)
@@ -28,7 +36,7 @@ export default async function ProjectsRedirect() {
   const groupId = cookieStore.get('qt_group')?.value
 
   if (groupId) {
-    const { data: group } = await supabase
+    const { data: group } = await admin
       .from('groups')
       .select('subdomain')
       .eq('id', groupId)
@@ -38,7 +46,7 @@ export default async function ProjectsRedirect() {
   }
 
   // Fallback: find any group this user is in
-  const { data: membership } = await supabase
+  const { data: membership } = await admin
     .from('group_members')
     .select('group_id, groups(subdomain)')
     .eq('user_id', user.id)
