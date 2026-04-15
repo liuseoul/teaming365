@@ -1,32 +1,28 @@
 export const runtime = 'edge'
 
 import { createClient } from '@supabase/supabase-js'
+import { clerkClient } from '@clerk/nextjs/server'
+import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
-export async function POST(req: Request) {
-  const { accessToken } = await req.json()
-  if (!accessToken) {
+export async function POST(_req: Request) {
+  // Get the authenticated Clerk user from the current session
+  const { userId } = await auth()
+
+  if (!userId) {
     return NextResponse.json({ redirect: 'login' }, { status: 401 })
   }
 
-  // Use service role client: auth.getUser(token) verifies the JWT directly,
-  // then service role bypasses RLS for profile/membership queries.
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Verify the access token — returns null if invalid/expired
-  const { data: { user }, error: userError } = await supabase.auth.getUser(accessToken)
-  if (!user || userError) {
-    return NextResponse.json({ redirect: 'login' }, { status: 401 })
-  }
-
-  // Check super-admin (service role bypasses RLS, always returns the row)
+  // Check super-admin flag in profiles table
   const { data: profile } = await supabase
     .from('profiles')
     .select('is_super_admin')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single()
 
   if (profile?.is_super_admin) {
@@ -37,7 +33,7 @@ export async function POST(req: Request) {
   const { data: membership } = await supabase
     .from('group_members')
     .select('role, groups(id, name, description, subdomain)')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .order('created_at', { ascending: true })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

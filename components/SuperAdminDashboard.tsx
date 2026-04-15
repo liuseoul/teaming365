@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useClerk } from '@clerk/nextjs'
 
 function generatePassword(): string {
   const upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
@@ -36,6 +37,7 @@ export default function SuperAdminDashboard({
   groups: any[]
 }) {
   const router = useRouter()
+  const { signOut } = useClerk()
 
   // ── Create group form state ─────────────────────────────────
   const [firmCn,    setFirmCn]    = useState('')
@@ -131,9 +133,8 @@ export default function SuperAdminDashboard({
   }
 
   async function handleLogout() {
-    const { createClient } = await import('@/lib/supabase/client')
-    await createClient().auth.signOut()
     document.cookie = 'qt_group=; path=/; max-age=0'
+    await signOut()
     router.push('/login')
     router.refresh()
   }

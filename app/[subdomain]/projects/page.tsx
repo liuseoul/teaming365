@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic'
 export const runtime = 'edge'
 
-import { createClient } from '@/lib/supabase/server'
+import { auth } from '@clerk/nextjs/server'
+import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import ProjectList from '@/components/ProjectList'
 
@@ -11,37 +12,27 @@ export default async function SubdomainProjectsPage({
   params: Promise<{ subdomain: string }>
 }) {
   const { subdomain } = await params
+  const { userId } = await auth()
+  if (!userId) redirect('/login')
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
-  // Resolve subdomain → group
   const { data: group } = await supabase
-    .from('groups')
-    .select('id, name, subdomain')
-    .eq('subdomain', subdomain)
-    .single()
-
+    .from('groups').select('id, name, subdomain').eq('subdomain', subdomain).single()
   if (!group) redirect('/login')
 
-  const groupId = group.id
-
-  // Verify membership & get role
   const { data: membership } = await supabase
-    .from('group_members')
-    .select('role')
-    .eq('group_id', groupId)
-    .eq('user_id', user.id)
-    .single()
-
+    .from('group_members').select('role')
+    .eq('group_id', group.id).eq('user_id', userId).single()
   if (!membership) redirect('/login')
 
-  const [{ data: profile }] = await Promise.all([
-    supabase.from('profiles').select('id, name').eq('id', user.id).single(),
-  ])
+  const { data: profile } = await supabase
+    .from('profiles').select('id, name').eq('id', userId).single()
 
-  const effectiveProfile = { ...(profile || {}), id: user.id, role: membership.role }
+  const effectiveProfile = { ...(profile || {}), id: userId, role: membership.role }
 
   const { data: projects } = await supabase
     .from('projects')
@@ -51,14 +42,14 @@ export default async function SubdomainProjectsPage({
       work_records(id, created_at, deleted, profiles!work_records_author_id_fkey(name)),
       time_logs(id, started_at, finished_at, deleted, profiles!time_logs_member_id_fkey(name))
     `)
-    .eq('group_id', groupId)
+    .eq('group_id', group.id)
     .order('created_at', { ascending: false })
 
   return (
     <ProjectList
       projects={projects || []}
       profile={effectiveProfile}
-      groupId={groupId}
+      groupId={group.id}
       groupName={group.name}
       subdomain={subdomain}
     />

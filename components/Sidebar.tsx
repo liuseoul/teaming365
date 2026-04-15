@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useClerk } from '@clerk/nextjs'
 
 const TYPE_LABELS: Record<string, string> = {
   online_meeting:     '线上会议',
@@ -185,6 +186,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
   const router   = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
+  const { signOut } = useClerk()
 
   const isAdmin    = ['first_admin', 'second_admin'].includes(profile?.role || '')
   const todayStr   = new Date().toISOString().split('T')[0]
@@ -421,8 +423,8 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut()
     document.cookie = 'qt_group=; path=/; max-age=0'
+    await signOut()
     router.push('/login')
     router.refresh()
   }

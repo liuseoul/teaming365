@@ -1,33 +1,29 @@
 export const dynamic = 'force-dynamic'
 export const runtime = 'edge'
 
-import { createClient } from '@/lib/supabase/server'
-import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { auth } from '@clerk/nextjs/server'
+import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import SuperAdminDashboard from '@/components/SuperAdminDashboard'
 
 export default async function SuperAdminPage() {
-  // Step 1: verify auth via cookie-based client
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const { userId } = await auth()
+  if (!userId) redirect('/login')
 
-  // Step 2: use service role to check is_super_admin — bypasses RLS and schema cache issues
-  const admin = createAdminClient(
+  const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data: profile } = await admin
+  const { data: profile } = await supabase
     .from('profiles')
     .select('id, name, is_super_admin')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single()
 
   if (!profile?.is_super_admin) redirect('/login')
 
-  // Load all groups with their first-admins
-  const { data: groups } = await admin
+  const { data: groups } = await supabase
     .from('groups')
     .select(`
       id, name, subdomain,

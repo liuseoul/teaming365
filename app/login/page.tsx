@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { useSignIn } from '@clerk/nextjs'
 
 type Group = { id: string; name: string; description: string; role: string; subdomain: string | null }
 
@@ -137,6 +137,7 @@ function ArtisticMotto() {
 /* ── Main page ──────────────────────────────────────────────── */
 export default function LoginPage() {
   const router = useRouter()
+  const { signIn, setActive, isLoaded } = useSignIn()
   const [step, setStep]         = useState<'login' | 'group'>('login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -145,42 +146,52 @@ export default function LoginPage() {
   const [groups,   setGroups]   = useState<Group[]>([])
 
   async function handleLogin() {
-    if (!email.trim() || !password) { setError('请输入邮箱和密码。'); return }
+    if (!isLoaded || !email.trim() || !password) { setError('请输入邮箱和密码。'); return }
     setLoading(true); setError('')
 
-    const supabase = createClient()
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(), password,
-    })
+    try {
+      // Sign in with Clerk
+      const result = await signIn.create({
+        identifier: email.trim().toLowerCase(),
+        password,
+      })
 
-    if (authError) {
+      if (result.status !== 'complete') {
+        setError('登录未完成，请重试。')
+        setLoading(false); return
+      }
+
+      // Activate the Clerk session
+      await setActive({ session: result.createdSessionId })
+
+      // Get the Clerk session token to pass to our post-login API
+      const token = await result.createdSessionId
+
+      const res  = await fetch('/api/auth/post-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: result.createdSessionId }),
+      })
+      const json = await res.json()
+
+      if (json.redirect === 'super-admin') {
+        router.push('/super-admin'); router.refresh(); return
+      }
+
+      const userGroups: Group[] = json.groups || []
+
+      if (userGroups.length === 0) {
+        setError('您尚未加入任何团队，请联系管理员。')
+        await signIn.create({ identifier: '', password: '' }).catch(() => {})
+        setLoading(false); return
+      }
+      if (userGroups.length === 1) { doSelectGroup(userGroups[0]); return }
+
+      setGroups(userGroups); setLoading(false); setStep('group')
+    } catch {
       setError('邮箱或密码错误，请联系管理员。')
-      setLoading(false); return
+      setLoading(false)
     }
-
-    const { data: { user: authedUser } } = await supabase.auth.getUser()
-    const { data: { session } }          = await supabase.auth.getSession()
-
-    const res  = await fetch('/api/auth/post-login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accessToken: session?.access_token }),
-    })
-    const json = await res.json()
-
-    if (json.redirect === 'super-admin') {
-      router.push('/super-admin'); router.refresh(); return
-    }
-
-    const userGroups: Group[] = json.groups || []
-
-    if (userGroups.length === 0) {
-      setError('您尚未加入任何团队，请联系管理员。')
-      await supabase.auth.signOut(); setLoading(false); return
-    }
-    if (userGroups.length === 1) { doSelectGroup(userGroups[0]); return }
-
-    setGroups(userGroups); setLoading(false); setStep('group')
   }
 
   function doSelectGroup(group: Group) {

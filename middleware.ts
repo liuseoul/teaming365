@@ -1,52 +1,27 @@
-import { createServerClient } from '@supabase/ssr'
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-type CookieItem = { name: string; value: string; options?: Record<string, unknown> }
+const isPublicRoute = createRouteMatcher([
+  '/login(.*)',
+  '/api/auth/(.*)',
+])
 
-export async function middleware(req: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request: req })
+export default clerkMiddleware(async (auth, req: NextRequest) => {
+  const { userId } = await auth()
+  const isLoginPage = req.nextUrl.pathname === '/login'
 
-  try {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return req.cookies.getAll()
-          },
-          setAll(cookiesToSet: CookieItem[]) {
-            cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value))
-            supabaseResponse = NextResponse.next({ request: req })
-            cookiesToSet.forEach(({ name, value, options }) =>
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              supabaseResponse.cookies.set(name, value, options as any)
-            )
-          },
-        },
-      }
-    )
-
-    const { data: { user } } = await supabase.auth.getUser()
-    const { pathname } = req.nextUrl
-    const isLoginPage = pathname === '/login'
-
-    if (!user && !isLoginPage) {
-      return NextResponse.redirect(new URL('/login', req.url))
-    }
-    if (user && isLoginPage) {
-      // Redirect authenticated users away from login.
-      // /projects acts as the smart dispatcher (super-admin → /super-admin, else → subdomain)
-      return NextResponse.redirect(new URL('/projects', req.url))
-    }
-  } catch {
-    return NextResponse.next({ request: req })
+  // Not logged in and trying to access a protected route
+  if (!userId && !isPublicRoute(req)) {
+    return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  return supabaseResponse
-}
+  // Already logged in and hitting the login page — send to smart dispatcher
+  if (userId && isLoginPage) {
+    return NextResponse.redirect(new URL('/projects', req.url))
+  }
+})
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }
