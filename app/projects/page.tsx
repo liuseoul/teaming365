@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useAuth } from '@clerk/nextjs/legacy'
+import { useAuth } from '@clerk/nextjs'
 
 export default function ProjectsRedirect() {
   const { userId, isLoaded } = useAuth()
