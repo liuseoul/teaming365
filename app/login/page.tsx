@@ -161,38 +161,11 @@ export default function LoginPage() {
         setLoading(false); return
       }
 
-      // Activate the Clerk session
+      // Activate the Clerk session then let the /projects server component
+      // handle routing (super-admin → /super-admin, member → /:subdomain/projects)
       await setActive({ session: result.createdSessionId })
-
-      // Get the JWT token from the active session and pass it explicitly
-      // (avoids next/headers hang in Cloudflare edge runtime)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const token: string = await (window as any).Clerk?.session?.getToken() ?? ''
-
-      const res  = await fetch('/api/auth/post-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ sessionId: result.createdSessionId }),
-      })
-      const json = await res.json()
-
-      if (json.redirect === 'super-admin') {
-        router.push('/super-admin'); router.refresh(); return
-      }
-
-      const userGroups: Group[] = json.groups || []
-
-      if (userGroups.length === 0) {
-        setError(`[debug] ${json._debug || 'no_groups'} uid=${json._userId || 'n/a'}`)
-        await signIn.create({ identifier: '', password: '' }).catch(() => {})
-        setLoading(false); return
-      }
-      if (userGroups.length === 1) { doSelectGroup(userGroups[0]); return }
-
-      setGroups(userGroups); setLoading(false); setStep('group')
+      router.push('/projects')
+      router.refresh()
     } catch {
       setError('邮箱或密码错误，请联系管理员。')
       setLoading(false)
