@@ -76,5 +76,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: '用户已创建，但加入团队失败：' + memberError.message }, { status: 400 })
   }
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true, newUserId: clerkUser.id })
 }

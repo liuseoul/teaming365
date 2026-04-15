@@ -1,8 +1,15 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Sidebar from './Sidebar'
+import { useE3Kit } from '@/lib/useE3Kit'
+import {
+  createVirgilGroup,
+  loadVirgilGroup,
+  addUserToVirgilGroup,
+  removeUserFromVirgilGroup,
+} from '@/lib/e3kit'
 
 const STATUS_LABELS: Record<string, string> = {
   active: '进行中',
@@ -38,6 +45,33 @@ export default function AdminDashboard({
 
   const isFirstAdmin = profile?.role === 'first_admin'
   const [tab, setTab] = useState<'projects' | 'members'>('projects')
+
+  // ── E3Kit (Virgil E2E encryption) ───────────────────────────
+  const { eThree, ready: eKitReady } = useE3Kit(profile?.id || null)
+  const [virgilGroupReady, setVirgilGroupReady] = useState(false)
+
+  // first_admin sets up the Virgil group once E3Kit is ready
+  useEffect(() => {
+    if (!eThree || !eKitReady || !isFirstAdmin) return
+
+    const adminId = profile.id as string
+    ;(async () => {
+      // Create the Virgil group if it doesn't exist yet
+      let group = await loadVirgilGroup(eThree, groupId, adminId)
+      if (!group) {
+        await createVirgilGroup(eThree, groupId)
+      }
+      setVirgilGroupReady(true)
+
+      // Silently try to add existing members (no-op if not yet registered)
+      for (const m of members) {
+        if (m.id !== adminId) {
+          await addUserToVirgilGroup(eThree, groupId, adminId, m.id).catch(() => {})
+        }
+      }
+    })().catch(console.error)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eThree, eKitReady, isFirstAdmin])
 
   // ── 新建项目 ────────────────────────────────────────────
   const [projName,      setProjName]      = useState('')
@@ -121,6 +155,11 @@ export default function AdminDashboard({
     if (!res.ok) {
       setMemMsg(`❌ ${json.error || '创建失败'}`)
     } else {
+      // If this admin has E3Kit ready, try to add the new member to the Virgil group.
+      // This silently no-ops if the new member hasn't logged in yet (not registered with Virgil).
+      if (eThree && isFirstAdmin && json.newUserId) {
+        addUserToVirgilGroup(eThree, groupId, profile.id as string, json.newUserId).catch(() => {})
+      }
       setMemMsg('✅ 成员已创建')
       setMemName(''); setMemEmail(''); setMemPassword(''); setMemRole('member')
       setTimeout(() => router.refresh(), 800)
@@ -155,6 +194,10 @@ export default function AdminDashboard({
     if (!res.ok) {
       setRemoveMsg(`❌ ${json.error || '操作失败'}`)
     } else {
+      // Remove from Virgil group in background (silently ignores errors)
+      if (eThree && isFirstAdmin) {
+        removeUserFromVirgilGroup(eThree, groupId, profile.id as string, memberId).catch(() => {})
+      }
       setTimeout(() => router.refresh(), 400)
     }
     setRemoveSaving(null)
