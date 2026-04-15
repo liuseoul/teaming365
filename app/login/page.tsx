@@ -147,9 +147,19 @@ export default function LoginPage() {
 
   // Already logged in — redirect away from login page
   useEffect(() => {
-    if (authLoaded && userId) {
-      window.location.href = '/projects'
-    }
+    if (!authLoaded || !userId) return
+    fetch('/api/auth/get-redirect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    })
+      .then(r => r.json())
+      .then(({ url }) => {
+        window.location.href = url && url !== '/login'
+          ? `${url}?_uid=${encodeURIComponent(userId)}`
+          : '/login'
+      })
+      .catch(() => { window.location.href = '/projects' })
   }, [authLoaded, userId])
   const [loading,  setLoading]  = useState(false)
   const [groups,   setGroups]   = useState<Group[]>([])
@@ -170,13 +180,25 @@ export default function LoginPage() {
         setLoading(false); return
       }
 
-      // Activate the Clerk session, then wait for the short-lived JWT to be
-      // fetched and written into the __session cookie before navigating.
-      // Without this extra await, the server component receives no token.
+      // Activate session — userId is now live in Clerk's in-memory state
       await setActive({ session: result.createdSessionId })
+
+      // Get userId while still on this page (before any navigation loses memory state)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (window as any).Clerk?.session?.getToken()
-      window.location.href = '/projects'
+      const uid = (window as any).Clerk?.user?.id as string | undefined
+      if (!uid) { window.location.href = '/projects'; return }
+
+      // Ask Supabase (via simple API) where to route this user
+      const res  = await fetch('/api/auth/get-redirect', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ userId: uid }),
+      })
+      const { url } = await res.json()
+      // Navigate directly to final destination — no intermediate /projects hop
+      window.location.href = url && url !== '/login'
+        ? `${url}?_uid=${encodeURIComponent(uid)}`
+        : '/login'
     } catch {
       setError('邮箱或密码错误，请联系管理员。')
       setLoading(false)
