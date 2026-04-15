@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useClerk } from '@clerk/nextjs/legacy'
+import { useClerk } from '@clerk/nextjs'
 
 function generatePassword(): string {
   const upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ'

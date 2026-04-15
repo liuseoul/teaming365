@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { useClerk } from '@clerk/nextjs/legacy'
+import { useClerk } from '@clerk/nextjs'
 
 const TYPE_LABELS: Record<string, string> = {
   online_meeting:     '线上会议',
