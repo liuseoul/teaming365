@@ -239,7 +239,7 @@ export async function removeMemberFromGroup(
  */
 export function encryptText(plaintext: string, groupKey: Uint8Array): string {
   const nonce     = nacl.randomBytes(24)
-  const encrypted = nacl.secretbox(encodeUTF8(plaintext), nonce, groupKey)
+  const encrypted = nacl.secretbox(decodeUTF8(plaintext), nonce, groupKey)
   const combined  = new Uint8Array(24 + encrypted.length)
   combined.set(nonce)
   combined.set(encrypted, 24)
@@ -256,7 +256,7 @@ export function decryptText(ciphertext: string, groupKey: Uint8Array): string | 
     const nonce     = combined.slice(0, 24)
     const encrypted = combined.slice(24)
     const decrypted = nacl.secretbox.open(encrypted, nonce, groupKey)
-    return decrypted ? decodeUTF8(decrypted) : null
+    return decrypted ? encodeUTF8(decrypted) : null
   } catch {
     return null
   }
