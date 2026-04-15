@@ -161,11 +161,10 @@ export default function LoginPage() {
         setLoading(false); return
       }
 
-      // Activate the Clerk session then let the /projects server component
-      // handle routing (super-admin → /super-admin, member → /:subdomain/projects)
+      // Activate the Clerk session then do a full page reload so the server
+      // component receives the fresh session cookie (client-side nav misses it)
       await setActive({ session: result.createdSessionId })
-      router.push('/projects')
-      router.refresh()
+      window.location.href = '/projects'
     } catch {
       setError('邮箱或密码错误，请联系管理员。')
       setLoading(false)
