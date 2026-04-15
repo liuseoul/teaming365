@@ -20,7 +20,12 @@ export default function ProjectsRedirect() {
       body: JSON.stringify({ userId }),
     })
       .then(r => r.json())
-      .then(({ url }) => { window.location.href = url || '/login' })
+      .then(({ url }) => {
+        const dest = url && url !== '/login'
+          ? `${url}?_uid=${encodeURIComponent(userId!)}`
+          : '/login'
+        window.location.href = dest
+      })
       .catch(() => { window.location.href = '/login' })
   }, [isLoaded, userId])
 

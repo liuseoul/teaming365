@@ -6,8 +6,20 @@ import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import SuperAdminDashboard from '@/components/SuperAdminDashboard'
 
-export default async function SuperAdminPage() {
-  const { userId } = await auth()
+export default async function SuperAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ _uid?: string }>
+}) {
+  const { _uid } = await searchParams
+
+  // Use _uid passed from client redirect (avoids Clerk JWKS hang on first load)
+  // Fall back to auth() for direct navigation / refreshes
+  let userId: string | null = _uid || null
+  if (!userId) {
+    const { userId: clerkUserId } = await auth()
+    userId = clerkUserId
+  }
   if (!userId) redirect('/login')
 
   const supabase = createClient(

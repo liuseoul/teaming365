@@ -8,11 +8,19 @@ import ProjectList from '@/components/ProjectList'
 
 export default async function SubdomainProjectsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ subdomain: string }>
+  searchParams: Promise<{ _uid?: string }>
 }) {
   const { subdomain } = await params
-  const { userId } = await auth()
+  const { _uid } = await searchParams
+
+  let userId: string | null = _uid || null
+  if (!userId) {
+    const { userId: clerkUserId } = await auth()
+    userId = clerkUserId
+  }
   if (!userId) redirect('/login')
 
   const supabase = createClient(
