@@ -7,3 +7,4 @@ pages_build_output_dir = ".vercel/output/static"
 [vars]
 NEXT_PUBLIC_SUPABASE_URL = "https://kcdsjpydtoslllmwutfy.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_jvlve7DV0RTxZNQ1dv98EQ_2BjiyobX"
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_c3RhYmxlLXNrdW5rLTgxLmNsZXJrLmFjY291bnRzLmRldiQ"
