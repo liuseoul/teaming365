@@ -177,14 +177,12 @@ export default function LoginPage() {
         password: resetNewPwd,
       } as any)
       if (result.status === 'complete') {
-        setActive!({ session: result.createdSessionId }).catch(() => {})
-        const res = await fetch('/api/auth/get-redirect', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: resetEmail.trim().toLowerCase() }),
-        })
-        const { url, uid } = await res.json()
-        if (uid) document.cookie = `qt_uid=${encodeURIComponent(uid)}; path=/; max-age=86400; SameSite=Lax`
-        window.location.href = url && url !== '/login' ? `${url}?_uid=${encodeURIComponent(uid)}` : '/login'
+        // Go back to login form with email pre-filled and a success hint
+        setEmail(resetEmail.trim().toLowerCase())
+        setPassword('')
+        setError('✅ 密码已重置，请使用新密码登录')
+        setStep('login')
+        setResetCode(''); setResetNewPwd(''); setShowNewPwd(false)
       } else {
         setResetMsg('❌ 重置未完成，请重试')
       }
@@ -434,8 +432,10 @@ export default function LoginPage() {
                 />
               </div>
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
-                  <p className="text-red-700 text-sm">{error}</p>
+                <div className={`rounded-lg px-4 py-2.5 border ${error.startsWith('✅')
+                  ? 'bg-green-50 border-green-200'
+                  : 'bg-red-50 border-red-200'}`}>
+                  <p className={`text-sm ${error.startsWith('✅') ? 'text-green-700' : 'text-red-700'}`}>{error}</p>
                 </div>
               )}
               <button onClick={handleLogin} disabled={loading}
