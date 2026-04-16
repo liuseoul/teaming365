@@ -228,6 +228,7 @@ export default function TodoPanel({ profile, groupId }: { profile: any; groupId:
   const [displayTodos,     setDisplayTodos]     = useState<Todo[]>([])
   const [members,          setMembers]          = useState<Member[]>([])
   const [showAdd,          setShowAdd]          = useState(false)
+  const [showAllTodos,     setShowAllTodos]     = useState(false)
   const [input,            setInput]            = useState('')
   const [saving,           setSaving]           = useState(false)
   const [showAllCompleted, setShowAllCompleted] = useState(false)
@@ -403,10 +404,18 @@ export default function TodoPanel({ profile, groupId }: { profile: any; groupId:
     <div className="w-[480px] bg-gray-50 border-l border-gray-200 flex flex-col h-full flex-shrink-0">
       <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200 flex-shrink-0 bg-white">
         <h2 className="text-sm font-semibold text-gray-800">工作安排</h2>
-        <button onClick={() => setShowAdd(true)}
-          className="text-xs bg-teal-600 hover:bg-teal-700 text-white font-medium px-3 py-1.5 rounded-lg transition-colors">
-          + 添加
-        </button>
+        <div className="flex items-center gap-2">
+          {uncompleted.length > 0 && (
+            <button onClick={() => setShowAllTodos(true)}
+              className="text-xs text-gray-500 hover:text-teal-600 px-2 py-1.5 rounded-lg border border-gray-300 hover:border-teal-400 transition-colors">
+              查看全部
+            </button>
+          )}
+          <button onClick={() => setShowAdd(true)}
+            className="text-xs bg-teal-600 hover:bg-teal-700 text-white font-medium px-3 py-1.5 rounded-lg transition-colors">
+            + 添加
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
@@ -458,6 +467,41 @@ export default function TodoPanel({ profile, groupId }: { profile: any; groupId:
           </>
         )}
       </div>
+
+      {showAllTodos && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+              <h3 className="text-base font-semibold text-gray-900">
+                全部待办事项 <span className="text-gray-400 font-normal text-sm">({uncompleted.length})</span>
+              </h3>
+              <button onClick={() => setShowAllTodos(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+              {uncompleted.map((todo, idx) => (
+                <div key={todo.id} className={`flex items-start gap-2 px-2 py-2 rounded-lg border ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} border-gray-200`}>
+                  <div className="flex-shrink-0 mt-1 w-3.5 h-3.5 rounded-full border-2 border-gray-300" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-1 flex-wrap">
+                      <span className="text-sm leading-snug break-words text-gray-800">{todo.content}</span>
+                      {todo.assignee_abbrev && (
+                        <span className="text-[10px] font-bold px-1 rounded flex-shrink-0 text-teal-600 bg-teal-50">
+                          {todo.assignee_abbrev}
+                        </span>
+                      )}
+                      {todo.assignee_abbrev_2 && (
+                        <span className="text-[10px] font-bold px-1 rounded flex-shrink-0 text-indigo-600 bg-indigo-50">
+                          {todo.assignee_abbrev_2}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAdd && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

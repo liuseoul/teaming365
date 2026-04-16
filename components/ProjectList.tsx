@@ -66,6 +66,9 @@ const EMPTY_FORM: EditForm = {
   service_fee_currency: '', service_fee_amount: '', collaboration_parties: '', status: 'active',
 }
 
+type StatsResult = { total: number; accepted: number; completed: number }
+type SortMode = 'latest_activity' | 'created_at'
+
 export default function ProjectList({
   projects, profile, groupId, groupName, subdomain,
 }: {
@@ -91,6 +94,18 @@ export default function ProjectList({
   const [saving,      setSaving]      = useState(false)
 
   const [displayProjects, setDisplayProjects] = useState<any[]>(projects)
+
+  // ── Project Stats (Task 4) ──────────────────────────────────
+  const [showProjStats,   setShowProjStats]   = useState(false)
+  const [statsStart,      setStatsStart]      = useState('')
+  const [statsEnd,        setStatsEnd]        = useState('')
+  const [statsResult,     setStatsResult]     = useState<StatsResult | null>(null)
+  const [showStatsResult, setShowStatsResult] = useState(false)
+
+  // ── Sort Modal (Task 8) ─────────────────────────────────────
+  const [showSortModal,   setShowSortModal]   = useState(false)
+  const [sortMode,        setSortMode]        = useState<SortMode>('latest_activity')
+  const [pendingSortMode, setPendingSortMode] = useState<SortMode>('latest_activity')
 
   useEffect(() => {
     if (!groupKey) return
@@ -164,15 +179,42 @@ export default function ProjectList({
     return maxTs
   }
 
+  // Task 6 + Task 8: sort respects sortMode; delayed always at end
   const sorted = (list: any[]) => {
-    const active   = list.filter((p: any) => p.status !== 'delayed')
-    const delayed  = list.filter((p: any) => p.status === 'delayed')
-    active.sort((a: any, b: any) => {
+    const nonDelayed = list.filter((p: any) => p.status !== 'delayed')
+    const delayed    = list.filter((p: any) => p.status === 'delayed')
+
+    if (sortMode === 'created_at') {
+      const byCt = (a: any, b: any) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      return [...nonDelayed.sort(byCt), ...delayed.sort(byCt)]
+    }
+
+    // 'latest_activity' (default)
+    const byActivity = (a: any, b: any) => {
       const ta = getMaxActivityTs(a), tb = getMaxActivityTs(b)
       if (ta !== tb) return tb - ta
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    }
+    return [...nonDelayed.sort(byActivity), ...delayed.sort(byActivity)]
+  }
+
+  // ── Project Stats helpers (Task 4) ──────────────────────────
+  function computeStats() {
+    if (!statsStart || !statsEnd) { alert('请填写开始日期和结束日期'); return }
+    if (statsEnd < statsStart) { alert('结束日期不能早于开始日期'); return }
+    const from = new Date(statsStart).getTime()
+    const to   = new Date(statsEnd + 'T23:59:59').getTime()
+    const inRange = displayProjects.filter((p: any) => {
+      const t = new Date(p.created_at).getTime()
+      return t >= from && t <= to
     })
-    return [...active, ...delayed]
+    const total     = inRange.length
+    const accepted  = inRange.filter((p: any) => p.status !== 'cancelled' && p.status !== 'delayed').length
+    const completed = inRange.filter((p: any) => p.status === 'completed').length
+    setStatsResult({ total, accepted, completed })
+    setShowProjStats(false)
+    setShowStatsResult(true)
   }
 
   const filtered        = sorted(filter === 'all' ? displayProjects : displayProjects.filter((p: any) => p.status === filter))
@@ -206,7 +248,7 @@ export default function ProjectList({
         </div>
 
         {/* Status filter */}
-        <div className="flex items-center gap-2 px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center gap-2 px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0 flex-wrap">
           {STATUS_ORDER.map(key => (
             <button key={key} onClick={() => setFilter(key)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-150
@@ -219,6 +261,25 @@ export default function ProjectList({
               )}
             </button>
           ))}
+
+          {/* Task 4: 项目统计 button */}
+          <button
+            onClick={() => { setStatsStart(''); setStatsEnd(''); setShowProjStats(true) }}
+            className="px-4 py-1.5 rounded-full text-sm font-medium border border-teal-500 text-teal-600
+                       hover:bg-teal-50 transition-colors duration-150"
+          >
+            项目统计
+          </button>
+
+          {/* Task 8: 项目排序 button */}
+          <button
+            onClick={() => { setPendingSortMode(sortMode); setShowSortModal(true) }}
+            className="px-4 py-1.5 rounded-full text-sm font-medium border border-gray-400 text-gray-600
+                       hover:bg-gray-100 transition-colors duration-150"
+          >
+            项目排序
+          </button>
+
           <span className="ml-auto text-xs text-gray-400">共 {projects.length} 个项目</span>
         </div>
 
@@ -388,6 +449,132 @@ export default function ProjectList({
                 className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700
                            rounded-lg disabled:bg-gray-200 disabled:text-gray-400 transition-colors">
                 {saving ? '保存中…' : '保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ 项目统计 — Step 1: Date range modal (Task 4) ════════ */}
+      {showProjStats && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold text-gray-900">项目统计</h3>
+              <button onClick={() => setShowProjStats(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  开始日期 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={statsStart}
+                  onChange={e => setStatsStart(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  结束日期 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={statsEnd}
+                  onChange={e => setStatsEnd(e.target.value)}
+                  className="input-field"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowProjStats(false)}
+                className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                取消
+              </button>
+              <button onClick={computeStats}
+                className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700
+                           rounded-lg transition-colors">
+                统计
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ 项目统计 — Step 2: Results modal (Task 4) ══════════ */}
+      {showStatsResult && statsResult && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold text-gray-900">统计结果</h3>
+              <button onClick={() => setShowStatsResult(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              统计区间：{statsStart} ~ {statsEnd}
+            </p>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                <span className="text-sm text-gray-700">新立项目数</span>
+                <span className="text-lg font-bold text-teal-600">{statsResult.total}</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                <span className="text-sm text-gray-700">已承接项目数</span>
+                <span className="text-lg font-bold text-teal-600">{statsResult.accepted}</span>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm text-gray-700">已完成项目数</span>
+                <span className="text-lg font-bold text-teal-600">{statsResult.completed}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowStatsResult(false)}
+              className="w-full mt-5 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors"
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ══ 项目排序 modal (Task 8) ══════════════════════════════ */}
+      {showSortModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold text-gray-900">项目排序</h3>
+              <button onClick={() => setShowSortModal(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+            </div>
+            <div className="space-y-3">
+              {([
+                { value: 'latest_activity', label: '按最新操作时间' },
+                { value: 'created_at',      label: '按创建时间' },
+              ] as { value: SortMode; label: string }[]).map(opt => (
+                <label key={opt.value}
+                  className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                  <input
+                    type="radio"
+                    name="sortMode"
+                    value={opt.value}
+                    checked={pendingSortMode === opt.value}
+                    onChange={() => setPendingSortMode(opt.value)}
+                    className="accent-teal-600"
+                  />
+                  <span className="text-sm text-gray-700">{opt.label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowSortModal(false)}
+                className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                取消
+              </button>
+              <button
+                onClick={() => { setSortMode(pendingSortMode); setShowSortModal(false) }}
+                className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700
+                           rounded-lg transition-colors"
+              >
+                确认
               </button>
             </div>
           </div>

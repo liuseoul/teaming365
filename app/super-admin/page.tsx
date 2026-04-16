@@ -41,22 +41,42 @@ export default async function SuperAdminPage({
 
   if (!profile?.is_super_admin) redirect('/login')
 
-  const { data: groups } = await supabase
-    .from('groups')
-    .select(`
-      id, name, subdomain,
-      firm_name_cn, firm_name_en,
-      manager_name_cn, manager_name_en,
-      created_at,
-      group_members!inner(user_id, role, profiles(id, name, email))
-    `)
-    .eq('group_members.role', 'first_admin')
-    .order('created_at', { ascending: false })
+  const [{ data: groups }, { data: allMembers }, { data: allProjects }] = await Promise.all([
+    supabase
+      .from('groups')
+      .select(`
+        id, name, subdomain,
+        firm_name_cn, firm_name_en,
+        manager_name_cn, manager_name_en,
+        created_at,
+        group_members!inner(user_id, role, profiles(id, name, email))
+      `)
+      .eq('group_members.role', 'first_admin')
+      .order('created_at', { ascending: false }),
+    supabase.from('group_members').select('group_id'),
+    supabase.from('projects').select('group_id'),
+  ])
+
+  // Build count maps
+  const memberCountMap: Record<string, number> = {}
+  for (const m of allMembers || []) {
+    memberCountMap[m.group_id] = (memberCountMap[m.group_id] || 0) + 1
+  }
+  const projectCountMap: Record<string, number> = {}
+  for (const p of allProjects || []) {
+    projectCountMap[p.group_id] = (projectCountMap[p.group_id] || 0) + 1
+  }
+
+  const enrichedGroups = (groups || []).map(g => ({
+    ...g,
+    memberCount:  memberCountMap[g.id] || 0,
+    projectCount: projectCountMap[g.id] || 0,
+  }))
 
   return (
     <SuperAdminDashboard
       profile={profile}
-      groups={groups || []}
+      groups={enrichedGroups}
     />
   )
 }

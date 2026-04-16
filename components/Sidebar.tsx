@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useClerk } from '@clerk/nextjs'
@@ -74,10 +74,11 @@ function remFullDateLabel(r: Reminder, today: string) {
   return sd === ed ? (sd === today ? '今天 · ' : '') + fmt(sd) : fmt(sd) + ' – ' + fmt(ed)
 }
 
-function StatsTable({ loading, queried, records, timeLogs, todos, showOperator }: {
+function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, groupByProject }: {
   loading: boolean; queried: boolean
   records: any[]; timeLogs: any[]; todos: any[]
   showOperator: boolean
+  groupByProject?: boolean
 }) {
   if (loading) return <p className="text-sm text-gray-400 text-center py-8">查询中…</p>
   if (!queried) return <p className="text-sm text-gray-400 text-center py-8">请选择日期后点击确认</p>
@@ -88,6 +89,156 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator }
     if (!finished) return '—'
     const m = Math.round((new Date(finished).getTime() - new Date(started).getTime()) / 60000)
     return m > 0 ? `${m} 分钟` : '—'
+  }
+
+  // Build table rows for records with optional project sub-headers
+  function renderRecordRows() {
+    if (!groupByProject) {
+      return records.map((r: any) => (
+        <tr key={r.id} className="hover:bg-gray-50">
+          <td className="px-2 py-1.5 border border-gray-200 text-gray-600">{r.projects?.name || '—'}</td>
+          <td className="px-2 py-1.5 border border-gray-200 text-gray-800 whitespace-pre-wrap leading-relaxed">{r.content}</td>
+          {showOperator && <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{r.profiles?.name || '—'}</td>}
+        </tr>
+      ))
+    }
+    const rows: React.ReactNode[] = []
+    let lastProjectId: string | null = null
+    records.forEach((r: any) => {
+      const pid = r.projects?.id || null
+      if (pid !== lastProjectId) {
+        lastProjectId = pid
+        const colSpan = showOperator ? 3 : 2
+        rows.push(
+          <tr key={`ph-${pid || 'none'}-${r.id}`} className="bg-teal-50">
+            <td colSpan={colSpan} className="px-2 py-1 border border-gray-200 text-teal-700 font-semibold text-xs">
+              {r.projects?.name || '无项目'}
+            </td>
+          </tr>
+        )
+      }
+      rows.push(
+        <tr key={r.id} className="hover:bg-gray-50">
+          <td className="px-2 py-1.5 border border-gray-200 text-gray-600">{r.projects?.name || '—'}</td>
+          <td className="px-2 py-1.5 border border-gray-200 text-gray-800 whitespace-pre-wrap leading-relaxed">{r.content}</td>
+          {showOperator && <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{r.profiles?.name || '—'}</td>}
+        </tr>
+      )
+    })
+    return rows
+  }
+
+  // Build table rows for time logs with optional project sub-headers
+  function renderTimeLogRows() {
+    if (!groupByProject) {
+      return timeLogs.map((l: any) => {
+        const startStr = new Date(l.started_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+        const endStr   = l.finished_at ? new Date(l.finished_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'
+        return (
+          <tr key={l.id} className="hover:bg-gray-50">
+            <td className="px-2 py-1.5 border border-gray-200 text-gray-600">{l.projects?.name || '—'}</td>
+            <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{startStr}–{endStr}</td>
+            <td className="px-2 py-1.5 border border-gray-200 text-teal-600 font-semibold">{durMins(l.started_at, l.finished_at)}</td>
+            <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{l.description || '—'}</td>
+            {showOperator && <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{l.profiles?.name || '—'}</td>}
+          </tr>
+        )
+      })
+    }
+    const rows: React.ReactNode[] = []
+    let lastProjectId: string | null = null
+    timeLogs.forEach((l: any) => {
+      const pid = l.projects?.id || null
+      if (pid !== lastProjectId) {
+        lastProjectId = pid
+        const colSpan = showOperator ? 5 : 4
+        rows.push(
+          <tr key={`ph-${pid || 'none'}-${l.id}`} className="bg-teal-50">
+            <td colSpan={colSpan} className="px-2 py-1 border border-gray-200 text-teal-700 font-semibold text-xs">
+              {l.projects?.name || '无项目'}
+            </td>
+          </tr>
+        )
+      }
+      const startStr = new Date(l.started_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+      const endStr   = l.finished_at ? new Date(l.finished_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'
+      rows.push(
+        <tr key={l.id} className="hover:bg-gray-50">
+          <td className="px-2 py-1.5 border border-gray-200 text-gray-600">{l.projects?.name || '—'}</td>
+          <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{startStr}–{endStr}</td>
+          <td className="px-2 py-1.5 border border-gray-200 text-teal-600 font-semibold">{durMins(l.started_at, l.finished_at)}</td>
+          <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{l.description || '—'}</td>
+          {showOperator && <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{l.profiles?.name || '—'}</td>}
+        </tr>
+      )
+    })
+    return rows
+  }
+
+  // Group todos by completed_by_name for group view
+  function renderTodos() {
+    if (!showOperator) {
+      // Personal view — flat list
+      return (
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="bg-gray-50 text-gray-500">
+              <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">内容</th>
+              <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-10">负责</th>
+              <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-16">完成时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            {todos.map((t: any) => (
+              <tr key={t.id} className="hover:bg-gray-50">
+                <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{t.content}</td>
+                <td className="px-2 py-1.5 border border-gray-200 text-center text-teal-600 font-bold">{t.assignee_abbrev || '—'}</td>
+                <td className="px-2 py-1.5 border border-gray-200 text-gray-500">
+                  {t.completed_at ? new Date(t.completed_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )
+    }
+    // Group view — group by completed_by_name
+    const groups: { operator: string; items: any[] }[] = []
+    const seenOps = new Map<string, number>()
+    todos.forEach((t: any) => {
+      const op = t.completed_by_name || '—'
+      if (seenOps.has(op)) {
+        groups[seenOps.get(op)!].items.push(t)
+      } else {
+        seenOps.set(op, groups.length)
+        groups.push({ operator: op, items: [t] })
+      }
+    })
+    return (
+      <div className="space-y-3">
+        {groups.map(({ operator, items }) => (
+          <div key={operator}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-xs font-semibold text-gray-700">{operator}</span>
+              <span className="text-xs text-gray-400">({items.length})</span>
+            </div>
+            <table className="w-full text-xs border-collapse">
+              <tbody>
+                {items.map((t: any) => (
+                  <tr key={t.id} className="hover:bg-gray-50">
+                    <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{t.content}</td>
+                    <td className="px-2 py-1.5 border border-gray-200 text-center text-teal-600 font-bold w-10">{t.assignee_abbrev || '—'}</td>
+                    <td className="px-2 py-1.5 border border-gray-200 text-gray-500 w-16">
+                      {t.completed_at ? new Date(t.completed_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+    )
   }
 
   return (
@@ -106,13 +257,7 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator }
               </tr>
             </thead>
             <tbody>
-              {records.map((r: any) => (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-2 py-1.5 border border-gray-200 text-gray-600">{r.projects?.name || '—'}</td>
-                  <td className="px-2 py-1.5 border border-gray-200 text-gray-800 whitespace-pre-wrap leading-relaxed">{r.content}</td>
-                  {showOperator && <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{r.profiles?.name || '—'}</td>}
-                </tr>
-              ))}
+              {renderRecordRows()}
             </tbody>
           </table>
         </div>
@@ -134,19 +279,7 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator }
               </tr>
             </thead>
             <tbody>
-              {timeLogs.map((l: any) => {
-                const startStr = new Date(l.started_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-                const endStr   = l.finished_at ? new Date(l.finished_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'
-                return (
-                  <tr key={l.id} className="hover:bg-gray-50">
-                    <td className="px-2 py-1.5 border border-gray-200 text-gray-600">{l.projects?.name || '—'}</td>
-                    <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{startStr}–{endStr}</td>
-                    <td className="px-2 py-1.5 border border-gray-200 text-teal-600 font-semibold">{durMins(l.started_at, l.finished_at)}</td>
-                    <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{l.description || '—'}</td>
-                    {showOperator && <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{l.profiles?.name || '—'}</td>}
-                  </tr>
-                )
-              })}
+              {renderTimeLogRows()}
             </tbody>
           </table>
         </div>
@@ -157,28 +290,7 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator }
           <h4 className="text-sm font-semibold text-gray-700 mb-2">
             已完成待办 <span className="text-gray-400 font-normal">({todos.length})</span>
           </h4>
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500">
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">内容</th>
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-10">负责</th>
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-16">完成时间</th>
-                {showOperator && <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-14">操作人</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {todos.map((t: any) => (
-                <tr key={t.id} className="hover:bg-gray-50">
-                  <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{t.content}</td>
-                  <td className="px-2 py-1.5 border border-gray-200 text-center text-teal-600 font-bold">{t.assignee_abbrev || '—'}</td>
-                  <td className="px-2 py-1.5 border border-gray-200 text-gray-500">
-                    {t.completed_at ? new Date(t.completed_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                  </td>
-                  {showOperator && <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{t.completed_by_name || '—'}</td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {renderTodos()}
         </div>
       )}
     </div>
@@ -204,6 +316,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
   const [myGroups,        setMyGroups]        = useState<GroupInfo[]>([])
   const [showGroupPicker, setShowGroupPicker] = useState(false)
   const [showAllUpcoming, setShowAllUpcoming] = useState(false)
+  const [showAllRem,      setShowAllRem]      = useState(false)
 
   const [showAddRem,   setShowAddRem]   = useState(false)
   const [remType,      setRemType]      = useState('others')
@@ -424,11 +537,11 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
     const s = `${groupDate}T00:00:00.000Z`, e = `${groupDate}T23:59:59.999Z`
     const [{ data: recs }, { data: logs }, { data: tdos }] = await Promise.all([
       supabase.from('work_records')
-        .select('id, content, created_at, profiles!work_records_author_id_fkey(name), projects(name)')
+        .select('id, content, created_at, profiles!work_records_author_id_fkey(name), projects(id, name, created_at)')
         .eq('deleted', false).eq('group_id', groupId)
         .gte('created_at', s).lte('created_at', e).order('created_at', { ascending: true }),
       supabase.from('time_logs')
-        .select('id, started_at, finished_at, description, profiles!time_logs_member_id_fkey(name), projects(name)')
+        .select('id, started_at, finished_at, description, profiles!time_logs_member_id_fkey(name), projects(id, name, created_at)')
         .eq('deleted', false).eq('group_id', groupId)
         .gte('started_at', s).lte('started_at', e).order('started_at', { ascending: true }),
       supabase.from('todos')
@@ -436,16 +549,34 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         .eq('completed', true).eq('deleted', false).eq('group_id', groupId)
         .gte('completed_at', s).lte('completed_at', e).order('completed_at', { ascending: true }),
     ])
-    setGroupRecords((recs || []).map((r: any) => ({
+
+    // Sort work records: group by project ordered by project.created_at asc, then by record created_at asc within each project
+    const decRecs = (recs || []).map((r: any) => ({
       ...r,
       content: decField(r.content, groupKey),
       projects: r.projects ? { ...r.projects, name: decField(r.projects.name, groupKey) } : r.projects,
-    })))
-    setGroupTimeLogs((logs || []).map((l: any) => ({
+    }))
+    decRecs.sort((a: any, b: any) => {
+      const aTime = a.projects?.created_at || ''
+      const bTime = b.projects?.created_at || ''
+      if (aTime !== bTime) return aTime.localeCompare(bTime)
+      return (a.created_at || '').localeCompare(b.created_at || '')
+    })
+    setGroupRecords(decRecs)
+
+    // Sort time logs: group by project ordered by project.created_at asc, then by started_at asc within each project
+    const decLogs = (logs || []).map((l: any) => ({
       ...l,
       description: decField(l.description, groupKey),
       projects: l.projects ? { ...l.projects, name: decField(l.projects.name, groupKey) } : l.projects,
-    })))
+    }))
+    decLogs.sort((a: any, b: any) => {
+      const aTime = a.projects?.created_at || ''
+      const bTime = b.projects?.created_at || ''
+      if (aTime !== bTime) return aTime.localeCompare(bTime)
+      return (a.started_at || '').localeCompare(b.started_at || '')
+    })
+    setGroupTimeLogs(decLogs)
     setGroupTodos((tdos || []).map((t: any) => ({ ...t, content: decField(t.content, groupKey) })))
     setGroupLoading(false)
   }
@@ -635,10 +766,18 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex items-center justify-between px-3 pt-3 pb-2 flex-shrink-0">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">日程安排</span>
-            <button onClick={() => setShowAddRem(true)}
-              className="text-xs text-gray-500 hover:text-teal-600 px-2 py-0.5 rounded border border-gray-300 hover:border-teal-400 transition-colors">
-              + 添加
-            </button>
+            <div className="flex items-center gap-1.5">
+              {upcoming.length > 0 && (
+                <button onClick={() => setShowAllRem(true)}
+                  className="text-xs text-gray-500 hover:text-teal-600 px-2 py-0.5 rounded border border-gray-300 hover:border-teal-400 transition-colors">
+                  查看全部
+                </button>
+              )}
+              <button onClick={() => setShowAddRem(true)}
+                className="text-xs text-gray-500 hover:text-teal-600 px-2 py-0.5 rounded border border-gray-300 hover:border-teal-400 transition-colors">
+                + 添加
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1">
@@ -903,6 +1042,21 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         </div>
       )}
 
+      {/* ══ All Upcoming Reminders Modal ════════════════════════ */}
+      {showAllRem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+              <h3 className="text-base font-semibold text-gray-900">全部待办日程 <span className="text-gray-400 font-normal text-sm">({upcoming.length})</span></h3>
+              <button onClick={() => setShowAllRem(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+              {upcoming.map((r, i) => <ReminderRow key={r.id} r={r} index={i} variant="upcoming" />)}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ══ Group Daily Stats Modal (admin) ═════════════════════ */}
       {showGroupStats && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -923,7 +1077,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <StatsTable loading={groupLoading} queried={groupQueried}
-                records={groupRecords} timeLogs={groupTimeLogs} todos={groupTodos} showOperator={true} />
+                records={groupRecords} timeLogs={groupTimeLogs} todos={groupTodos} showOperator={true} groupByProject={true} />
             </div>
           </div>
         </div>
