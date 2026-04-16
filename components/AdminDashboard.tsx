@@ -151,7 +151,7 @@ export default function AdminDashboard({
     const res = await fetch('/api/admin/create-member', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: memName.trim(), email: memEmail.trim(), password: memPassword, role: memRole, groupId }),
+      body: JSON.stringify({ callerUserId: profile.id, name: memName.trim(), email: memEmail.trim(), password: memPassword, role: memRole, groupId }),
     })
     const json = await res.json()
     if (!res.ok) {
@@ -176,7 +176,7 @@ export default function AdminDashboard({
     const res = await fetch('/api/admin/reset-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberId: resetId, newPassword: resetPwd, groupId }),
+      body: JSON.stringify({ callerUserId: profile.id, memberId: resetId, newPassword: resetPwd, groupId }),
     })
     const json = await res.json()
     if (!res.ok) { setResetMsg(`❌ ${json.error || '操作失败'}`) }
@@ -190,7 +190,7 @@ export default function AdminDashboard({
     const res = await fetch('/api/admin/remove-member', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ memberId, groupId }),
+      body: JSON.stringify({ callerUserId: profile.id, memberId, groupId }),
     })
     const json = await res.json()
     if (!res.ok) {

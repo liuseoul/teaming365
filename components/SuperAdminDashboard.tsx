@@ -73,28 +73,34 @@ export default function SuperAdminDashboard({
       return
     }
     setSaving(true)
-    const res = await fetch('/api/super-admin/create-group-with-admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        firmNameCn: firmCn.trim(),
-        firmNameEn: firmEn.trim(),
-        managerNameCn: mgrCn.trim(),
-        managerNameEn: mgrEn.trim(),
-        managerEmail: mgrEmail.trim(),
-        password,
-      }),
-    })
-    const json = await res.json()
-    if (!res.ok) {
-      setMsg(`❌ ${json.error || '创建失败'}`)
-    } else {
-      setMsg(`✅ 团队已创建，子路径：/${json.subdomain}`)
-      setFirmCn(''); setFirmEn(''); setMgrCn(''); setMgrEn('')
-      setMgrEmail(''); setPassword(''); setShowPwd(false)
-      setTimeout(() => router.refresh(), 800)
+    try {
+      const res = await fetch('/api/super-admin/create-group-with-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callerUserId: profile.id,
+          firmNameCn: firmCn.trim(),
+          firmNameEn: firmEn.trim(),
+          managerNameCn: mgrCn.trim(),
+          managerNameEn: mgrEn.trim(),
+          managerEmail: mgrEmail.trim(),
+          password,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setMsg(`❌ ${json.error || '创建失败'}`)
+      } else {
+        setMsg(`✅ 团队已创建，子路径：/${json.subdomain}`)
+        setFirmCn(''); setFirmEn(''); setMgrCn(''); setMgrEn('')
+        setMgrEmail(''); setPassword(''); setShowPwd(false)
+        setTimeout(() => router.refresh(), 800)
+      }
+    } catch {
+      setMsg('❌ 网络错误，请重试')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   async function handleResetPwd() {
@@ -104,19 +110,24 @@ export default function SuperAdminDashboard({
       return
     }
     setResetSaving(true)
-    const res = await fetch('/api/super-admin/reset-first-admin-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adminUserId: resetAdminId, newPassword: resetPwd }),
-    })
-    const json = await res.json()
-    if (!res.ok) {
-      setResetMsg(`❌ ${json.error || '操作失败'}`)
-    } else {
-      setResetMsg('✅ 密码已重置')
-      setResetGroupId(''); setResetAdminId(''); setResetPwd(''); setShowResetPwd(false)
+    try {
+      const res = await fetch('/api/super-admin/reset-first-admin-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callerUserId: profile.id, adminUserId: resetAdminId, newPassword: resetPwd }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setResetMsg(`❌ ${json.error || '操作失败'}`)
+      } else {
+        setResetMsg('✅ 密码已重置')
+        setResetGroupId(''); setResetAdminId(''); setResetPwd(''); setShowResetPwd(false)
+      }
+    } catch {
+      setResetMsg('❌ 网络错误，请重试')
+    } finally {
+      setResetSaving(false)
     }
-    setResetSaving(false)
   }
 
   function handleGroupSelect(gid: string) {

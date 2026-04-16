@@ -1,26 +1,27 @@
 export const runtime = 'edge'
 
-import { auth } from '@clerk/nextjs/server'
 import { clerkClient } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: '未授权' }, { status: 401 })
-
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+
+  const body = await req.json()
+  const { callerUserId, firmNameCn, firmNameEn, managerNameCn, managerNameEn, managerEmail, password } = body
+
+  // Verify caller is super-admin via Supabase (avoids Clerk JWKS hang on edge)
+  const userId = callerUserId
+  if (!userId) return NextResponse.json({ error: '未授权' }, { status: 401 })
 
   const { data: profile } = await supabase
     .from('profiles').select('is_super_admin').eq('id', userId).single()
   if (!profile?.is_super_admin) {
     return NextResponse.json({ error: '仅超级管理员可操作' }, { status: 403 })
   }
-
-  const { firmNameCn, firmNameEn, managerNameCn, managerNameEn, managerEmail, password } = await req.json()
 
   if (!firmNameCn?.trim() || !firmNameEn?.trim() || !managerNameCn?.trim() ||
       !managerNameEn?.trim() || !managerEmail?.trim() || !password) {

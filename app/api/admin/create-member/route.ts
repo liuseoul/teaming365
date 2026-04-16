@@ -1,20 +1,19 @@
 export const runtime = 'edge'
 
-import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import { clerkClient } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: '未授权' }, { status: 401 })
-
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { name, email, password, role, groupId } = await req.json()
+  const body = await req.json()
+  const { callerUserId, name, email, password, role, groupId } = body
+  const userId = callerUserId
+  if (!userId) return NextResponse.json({ error: '未授权' }, { status: 401 })
   if (!groupId) return NextResponse.json({ error: '缺少团队参数' }, { status: 400 })
 
   // Verify caller is first_admin or second_admin
