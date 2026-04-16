@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSignIn } from '@clerk/nextjs/legacy'
-import { useAuth } from '@clerk/nextjs'
+import { useAuth, useClerk } from '@clerk/nextjs'
 
 type Group = { id: string; name: string; description: string; role: string; subdomain: string | null }
 
@@ -140,6 +140,7 @@ export default function LoginPage() {
   const router = useRouter()
   const { signIn, setActive, isLoaded } = useSignIn()
   const { userId, isLoaded: authLoaded } = useAuth()
+  const { signOut } = useClerk()
   const [step, setStep]         = useState<'login' | 'group' | 'reset-email' | 'reset-code'>('login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -177,7 +178,9 @@ export default function LoginPage() {
         password: resetNewPwd,
       } as any)
       if (result.status === 'complete') {
-        // Go back to login form with email pre-filled and a success hint
+        // Sign out the session Clerk silently created during reset,
+        // so the user can log in fresh with the new password.
+        await signOut().catch(() => {})
         setEmail(resetEmail.trim().toLowerCase())
         setPassword('')
         setError('✅ 密码已重置，请使用新密码登录')
