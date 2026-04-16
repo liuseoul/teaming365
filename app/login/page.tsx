@@ -140,10 +140,60 @@ export default function LoginPage() {
   const router = useRouter()
   const { signIn, setActive, isLoaded } = useSignIn()
   const { userId, isLoaded: authLoaded } = useAuth()
-  const [step, setStep]         = useState<'login' | 'group'>('login')
+  const [step, setStep]         = useState<'login' | 'group' | 'reset-email' | 'reset-code'>('login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState('')
+
+  // ── Password reset state ─────────────────────────────────
+  const [resetEmail,    setResetEmail]    = useState('')
+  const [resetCode,     setResetCode]     = useState('')
+  const [resetNewPwd,   setResetNewPwd]   = useState('')
+  const [resetLoading,  setResetLoading]  = useState(false)
+  const [resetMsg,      setResetMsg]      = useState('')
+  const [showNewPwd,    setShowNewPwd]    = useState(false)
+
+  async function handleSendResetCode() {
+    if (!isLoaded || !resetEmail.trim()) { setResetMsg('请输入邮箱'); return }
+    setResetLoading(true); setResetMsg('')
+    try {
+      await signIn!.create({ strategy: 'reset_password_email_code', identifier: resetEmail.trim().toLowerCase() })
+      setStep('reset-code')
+    } catch (err: any) {
+      setResetMsg(`❌ ${err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || '发送失败，请检查邮箱'}`)
+    } finally {
+      setResetLoading(false)
+    }
+  }
+
+  async function handleVerifyReset() {
+    if (!resetCode.trim() || !resetNewPwd) { setResetMsg('请填写验证码和新密码'); return }
+    if (resetNewPwd.length < 8) { setResetMsg('密码至少 8 位'); return }
+    setResetLoading(true); setResetMsg('')
+    try {
+      const result = await signIn!.attemptFirstFactor({
+        strategy: 'reset_password_email_code',
+        code: resetCode.trim(),
+        password: resetNewPwd,
+      } as any)
+      if (result.status === 'complete') {
+        setActive!({ session: result.createdSessionId }).catch(() => {})
+        const res = await fetch('/api/auth/get-redirect', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: resetEmail.trim().toLowerCase() }),
+        })
+        const { url, uid } = await res.json()
+        if (uid) document.cookie = `qt_uid=${encodeURIComponent(uid)}; path=/; max-age=86400; SameSite=Lax`
+        window.location.href = url && url !== '/login' ? `${url}?_uid=${encodeURIComponent(uid)}` : '/login'
+      } else {
+        setResetMsg('❌ 重置未完成，请重试')
+      }
+    } catch (err: any) {
+      setResetMsg(`❌ ${err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || '验证失败'}`)
+    } finally {
+      setResetLoading(false)
+    }
+  }
 
   // Already logged in — redirect away from login page
   useEffect(() => {
@@ -254,6 +304,91 @@ export default function LoginPage() {
     )
   }
 
+  /* ── Reset: enter email ────────────────────────────────── */
+  if (step === 'reset-email') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 flex items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-600 mb-4">
+              <span className="text-white text-2xl font-black">Q</span>
+            </div>
+            <h1 className="text-white mb-1"><BrandName size="lg" /></h1>
+            <p className="text-slate-400 text-sm">重置密码</p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-4">
+            <p className="text-sm text-gray-600">输入您的登录邮箱，我们将发送验证码。</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+              <input type="email" value={resetEmail} onChange={e => setResetEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSendResetCode()}
+                placeholder="your@email.com" autoFocus
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
+            </div>
+            {resetMsg && <p className="text-sm text-red-600">{resetMsg}</p>}
+            <button onClick={handleSendResetCode} disabled={resetLoading}
+              className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium py-2.5 rounded-lg transition-colors">
+              {resetLoading ? '发送中…' : '发送验证码'}
+            </button>
+            <button onClick={() => { setStep('login'); setResetMsg('') }}
+              className="w-full text-sm text-gray-500 hover:text-gray-700 py-1 transition-colors">
+              ← 返回登录
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Reset: enter code + new password ──────────────────── */
+  if (step === 'reset-code') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 flex items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-600 mb-4">
+              <span className="text-white text-2xl font-black">Q</span>
+            </div>
+            <h1 className="text-white mb-1"><BrandName size="lg" /></h1>
+            <p className="text-slate-400 text-sm">输入验证码并设置新密码</p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-4">
+            <p className="text-sm text-gray-500">验证码已发送至 <span className="font-medium text-gray-800">{resetEmail}</span></p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">验证码</label>
+              <input type="text" value={resetCode} onChange={e => setResetCode(e.target.value)}
+                placeholder="6 位数字" autoFocus inputMode="numeric" maxLength={6}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400 tracking-widest text-center" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">新密码</label>
+              <div className="relative">
+                <input type={showNewPwd ? 'text' : 'password'} value={resetNewPwd}
+                  onChange={e => setResetNewPwd(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleVerifyReset()}
+                  placeholder="至少 8 位" autoComplete="new-password"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400 pr-14" />
+                <button type="button" onClick={() => setShowNewPwd(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-700">
+                  {showNewPwd ? '隐藏' : '显示'}
+                </button>
+              </div>
+            </div>
+            {resetMsg && <p className="text-sm text-red-600">{resetMsg}</p>}
+            <button onClick={handleVerifyReset} disabled={resetLoading}
+              className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium py-2.5 rounded-lg transition-colors">
+              {resetLoading ? '验证中…' : '确认重置'}
+            </button>
+            <button onClick={() => { setStep('reset-email'); setResetMsg('') }}
+              className="w-full text-sm text-gray-500 hover:text-gray-700 py-1 transition-colors">
+              ← 重新发送
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   /* ── Login form ─────────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 flex items-center justify-center p-6">
@@ -309,6 +444,12 @@ export default function LoginPage() {
                            focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
                 {loading ? (loadStep || '登录中…') : '登录'}
               </button>
+              <div className="text-center">
+                <button type="button" onClick={() => { setStep('reset-email'); setResetEmail(email); setResetMsg('') }}
+                  className="text-xs text-gray-400 hover:text-teal-600 transition-colors">
+                  忘记密码？
+                </button>
+              </div>
             </div>
           </div>
 

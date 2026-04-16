@@ -11,6 +11,7 @@ import {
   addMemberToGroup,
   removeMemberFromGroup,
   encField,
+  decField,
 } from '@/lib/e2e'
 
 const STATUS_LABELS: Record<string, string> = {
@@ -52,6 +53,17 @@ export default function AdminDashboard({
   const { keyPair, ready: e2eReady } = useE2E(profile?.id || null)
   const groupKey = useGroupKey(profile?.id || null, groupId, keyPair)
   const [groupKeyReady, setGroupKeyReady] = useState(false)
+
+  // Decrypt project list for display
+  const [displayProjects, setDisplayProjects] = useState<any[]>(projects)
+  useEffect(() => {
+    if (!groupKey) return
+    setDisplayProjects(projects.map((p: any) => ({
+      ...p,
+      name:   decField(p.name, groupKey),
+      client: decField(p.client, groupKey),
+    })))
+  }, [groupKey, projects])
 
   // first_admin: create group key if missing, then add any registered members
   useEffect(() => {
@@ -308,10 +320,10 @@ export default function AdminDashboard({
 
               <section className="bg-white rounded-xl border border-gray-200 p-6">
                 <h2 className="text-base font-semibold text-gray-900 mb-4">
-                  现有项目 <span className="text-gray-400 font-normal text-sm">（{projects.length} 个）</span>
+                  现有项目 <span className="text-gray-400 font-normal text-sm">（{displayProjects.length} 个）</span>
                 </h2>
                 <div className="space-y-2">
-                  {projects.map((p: any) => (
+                  {displayProjects.map((p: any) => (
                     <div key={p.id} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
                       <div>
                         <div className="text-sm font-bold text-gray-900">{p.name}</div>
@@ -320,7 +332,7 @@ export default function AdminDashboard({
                       <span className={`status-tag st-${p.status}`}>{STATUS_LABELS[p.status]}</span>
                     </div>
                   ))}
-                  {projects.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">暂无项目</p>}
+                  {displayProjects.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">暂无项目</p>}
                 </div>
               </section>
             </div>
