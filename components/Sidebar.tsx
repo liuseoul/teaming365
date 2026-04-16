@@ -244,12 +244,12 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
   }, [groupId])
 
   async function loadReminders() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('reminders')
-      .select('*, profiles(name)')
+      .select('*')
       .eq('group_id', groupId)
       .order('due_date', { ascending: true })
-    setReminders(data || [])
+    if (!error) setReminders(data || [])
   }
 
   async function loadMembers() {
@@ -783,7 +783,6 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                     ${selectedRem.deleted || remEndDate(selectedRem) < todayStr ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                     {selectedRem.content}
                   </p>
-                  {selectedRem.profiles?.name && <p className="text-xs text-gray-400">创建人：{selectedRem.profiles.name}</p>}
                 </div>
 
                 <div className="flex gap-2 px-6 py-4 border-t border-gray-200 flex-shrink-0 flex-wrap">

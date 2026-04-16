@@ -91,15 +91,17 @@ export default function AdminDashboard({
   const [memName,     setMemName]     = useState('')
   const [memEmail,    setMemEmail]    = useState('')
   const [memPassword, setMemPassword] = useState('')
+  const [showMemPwd,  setShowMemPwd]  = useState(false)
   const [memRole,     setMemRole]     = useState('member')
   const [memSaving,   setMemSaving]   = useState(false)
   const [memMsg,      setMemMsg]      = useState('')
 
   // ── 重置密码 ────────────────────────────────────────────
-  const [resetId,     setResetId]     = useState('')
-  const [resetPwd,    setResetPwd]    = useState('')
-  const [resetSaving, setResetSaving] = useState(false)
-  const [resetMsg,    setResetMsg]    = useState('')
+  const [resetId,       setResetId]       = useState('')
+  const [resetPwd,      setResetPwd]      = useState('')
+  const [showResetPwd,  setShowResetPwd]  = useState(false)
+  const [resetSaving,   setResetSaving]   = useState(false)
+  const [resetMsg,      setResetMsg]      = useState('')
 
   // ── 移除成员 ────────────────────────────────────────────
   const [removeSaving, setRemoveSaving] = useState<string | null>(null)
@@ -339,8 +341,15 @@ export default function AdminDashboard({
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">初始密码 *</label>
-                    <input type="password" value={memPassword} onChange={e => setMemPassword(e.target.value)}
-                      placeholder="至少 6 位" className="input-field" />
+                    <div className="relative">
+                      <input type={showMemPwd ? 'text' : 'password'} value={memPassword}
+                        onChange={e => setMemPassword(e.target.value)}
+                        placeholder="至少 6 位" className="input-field pr-14" />
+                      <button type="button" onClick={() => setShowMemPwd(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-700">
+                        {showMemPwd ? '隐藏' : '显示'}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">角色</label>
@@ -368,8 +377,15 @@ export default function AdminDashboard({
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">新密码</label>
-                    <input type="password" value={resetPwd} onChange={e => setResetPwd(e.target.value)}
-                      placeholder="至少 6 位" className="input-field" />
+                    <div className="relative">
+                      <input type={showResetPwd ? 'text' : 'password'} value={resetPwd}
+                        onChange={e => setResetPwd(e.target.value)}
+                        placeholder="至少 6 位" className="input-field pr-14" />
+                      <button type="button" onClick={() => setShowResetPwd(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-700">
+                        {showResetPwd ? '隐藏' : '显示'}
+                      </button>
+                    </div>
                   </div>
                 </div>
                 {resetMsg && <p className="mt-3 text-sm">{resetMsg}</p>}
