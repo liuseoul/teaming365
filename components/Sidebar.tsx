@@ -355,6 +355,14 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
   const [groupTimeLogs,  setGroupTimeLogs]  = useState<any[]>([])
   const [groupTodos,     setGroupTodos]     = useState<any[]>([])
 
+  // range-mode additions
+  const [personalMode,       setPersonalMode]       = useState<'single' | 'range'>('single')
+  const [personalRangeStart, setPersonalRangeStart] = useState(new Date().toISOString().split('T')[0].slice(0, 7) + '-01')
+  const [personalRangeEnd,   setPersonalRangeEnd]   = useState(new Date().toISOString().split('T')[0])
+  const [groupMode,          setGroupMode]          = useState<'single' | 'range'>('single')
+  const [groupRangeStart,    setGroupRangeStart]    = useState(new Date().toISOString().split('T')[0].slice(0, 7) + '-01')
+  const [groupRangeEnd,      setGroupRangeEnd]      = useState(new Date().toISOString().split('T')[0])
+
   useEffect(() => {
     const uid = profile?.id || null
     setCurrentUserId(uid)
@@ -502,7 +510,10 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
   async function loadPersonalStats() {
     if (!currentUserId) return
     setPersonalLoading(true); setPersonalQueried(true)
-    const s = `${personalDate}T00:00:00.000Z`, e = `${personalDate}T23:59:59.999Z`
+    const startDay = personalMode === 'range' ? personalRangeStart : personalDate
+    const endDay   = personalMode === 'range' ? personalRangeEnd   : personalDate
+    if (endDay < startDay) { alert('结束日期不能早于开始日期'); setPersonalLoading(false); setPersonalQueried(false); return }
+    const s = `${startDay}T00:00:00.000Z`, e = `${endDay}T23:59:59.999Z`
     const [{ data: recs }, { data: logs }, { data: tdos }] = await Promise.all([
       supabase.from('work_records')
         .select('id, content, created_at, projects(name)')
@@ -534,7 +545,10 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
 
   async function loadGroupStats() {
     setGroupLoading(true); setGroupQueried(true)
-    const s = `${groupDate}T00:00:00.000Z`, e = `${groupDate}T23:59:59.999Z`
+    const startDay = groupMode === 'range' ? groupRangeStart : groupDate
+    const endDay   = groupMode === 'range' ? groupRangeEnd   : groupDate
+    if (endDay < startDay) { alert('结束日期不能早于开始日期'); setGroupLoading(false); setGroupQueried(false); return }
+    const s = `${startDay}T00:00:00.000Z`, e = `${endDay}T23:59:59.999Z`
     const [{ data: recs }, { data: logs }, { data: tdos }] = await Promise.all([
       supabase.from('work_records')
         .select('id, content, created_at, profiles!work_records_author_id_fkey(name), projects(id, name, created_at)')
@@ -741,14 +755,14 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
           <button
             onClick={() => { setShowPersonalStats(true); setPersonalRecords([]); setPersonalTimeLogs([]); setPersonalTodos([]); setPersonalQueried(false) }}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-150 text-left">
-            <span className="text-base">📊</span><span>个人日统计</span>
+            <span className="text-base">📊</span><span>个人工作统计</span>
           </button>
 
           {isAdmin && (
             <button
               onClick={() => { setShowGroupStats(true); setGroupRecords([]); setGroupTimeLogs([]); setGroupTodos([]); setGroupQueried(false) }}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-150 text-left">
-              <span className="text-base">📊</span><span>团队日统计</span>
+              <span className="text-base">📊</span><span>团队工作统计</span>
             </button>
           )}
 
@@ -1019,20 +1033,55 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
               <div>
-                <h3 className="text-base font-semibold text-gray-900">个人日统计</h3>
+                <h3 className="text-base font-semibold text-gray-900">个人工作统计</h3>
                 <p className="text-xs text-gray-400 mt-0.5">{profile?.name}</p>
               </div>
               <button onClick={() => setShowPersonalStats(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
-            <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0 flex items-center gap-3">
-              <input type="date" value={personalDate} onChange={e => setPersonalDate(e.target.value)} className="input-field w-44" />
-              <button onClick={loadPersonalStats} disabled={personalLoading}
-                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg disabled:bg-gray-200 transition-colors">
-                {personalLoading ? '查询中…' : '确认'}
-              </button>
-              {personalQueried && !personalLoading && (
-                <span className="text-xs text-gray-400">共 {personalRecords.length + personalTimeLogs.length + personalTodos.length} 条</span>
-              )}
+            <div className="px-6 py-3 border-b border-gray-100 flex-shrink-0 space-y-3">
+              <div className="flex gap-2">
+                <button onClick={() => { setPersonalMode('single'); setPersonalQueried(false) }}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
+                    ${personalMode === 'single'
+                      ? 'bg-teal-600 text-white border-teal-600'
+                      : 'text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
+                  单日
+                </button>
+                <button onClick={() => { setPersonalMode('range'); setPersonalQueried(false) }}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
+                    ${personalMode === 'range'
+                      ? 'bg-rose-400 text-white border-rose-400'
+                      : 'bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-100'}`}>
+                  区间
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                {personalMode === 'single' ? (
+                  <input type="date" value={personalDate}
+                    onChange={e => { setPersonalDate(e.target.value); setPersonalQueried(false) }}
+                    className="input-field w-44" />
+                ) : (
+                  <>
+                    <input type="date" value={personalRangeStart}
+                      onChange={e => { setPersonalRangeStart(e.target.value); setPersonalQueried(false) }}
+                      className="input-field w-40" />
+                    <span className="text-sm text-gray-400">至</span>
+                    <input type="date" value={personalRangeEnd} min={personalRangeStart}
+                      onChange={e => { setPersonalRangeEnd(e.target.value); setPersonalQueried(false) }}
+                      className="input-field w-40" />
+                  </>
+                )}
+                <button onClick={loadPersonalStats} disabled={personalLoading}
+                  className={`px-5 py-2 text-white text-sm font-medium rounded-lg disabled:bg-gray-200 transition-colors
+                    ${personalMode === 'range'
+                      ? 'bg-rose-400 hover:bg-rose-500'
+                      : 'bg-teal-600 hover:bg-teal-700'}`}>
+                  {personalLoading ? '查询中…' : '确认'}
+                </button>
+                {personalQueried && !personalLoading && (
+                  <span className="text-xs text-gray-400">共 {personalRecords.length + personalTimeLogs.length + personalTodos.length} 条</span>
+                )}
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <StatsTable loading={personalLoading} queried={personalQueried}
@@ -1062,18 +1111,53 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-base font-semibold text-gray-900">团队日统计</h3>
+              <h3 className="text-base font-semibold text-gray-900">团队工作统计</h3>
               <button onClick={() => setShowGroupStats(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
-            <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0 flex items-center gap-3">
-              <input type="date" value={groupDate} onChange={e => setGroupDate(e.target.value)} className="input-field w-44" />
-              <button onClick={loadGroupStats} disabled={groupLoading}
-                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg disabled:bg-gray-200 transition-colors">
-                {groupLoading ? '查询中…' : '确认'}
-              </button>
-              {groupQueried && !groupLoading && (
-                <span className="text-xs text-gray-400">共 {groupRecords.length + groupTimeLogs.length + groupTodos.length} 条</span>
-              )}
+            <div className="px-6 py-3 border-b border-gray-100 flex-shrink-0 space-y-3">
+              <div className="flex gap-2">
+                <button onClick={() => { setGroupMode('single'); setGroupQueried(false) }}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
+                    ${groupMode === 'single'
+                      ? 'bg-teal-600 text-white border-teal-600'
+                      : 'text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
+                  单日
+                </button>
+                <button onClick={() => { setGroupMode('range'); setGroupQueried(false) }}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
+                    ${groupMode === 'range'
+                      ? 'bg-rose-400 text-white border-rose-400'
+                      : 'bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-100'}`}>
+                  区间
+                </button>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                {groupMode === 'single' ? (
+                  <input type="date" value={groupDate}
+                    onChange={e => { setGroupDate(e.target.value); setGroupQueried(false) }}
+                    className="input-field w-44" />
+                ) : (
+                  <>
+                    <input type="date" value={groupRangeStart}
+                      onChange={e => { setGroupRangeStart(e.target.value); setGroupQueried(false) }}
+                      className="input-field w-40" />
+                    <span className="text-sm text-gray-400">至</span>
+                    <input type="date" value={groupRangeEnd} min={groupRangeStart}
+                      onChange={e => { setGroupRangeEnd(e.target.value); setGroupQueried(false) }}
+                      className="input-field w-40" />
+                  </>
+                )}
+                <button onClick={loadGroupStats} disabled={groupLoading}
+                  className={`px-5 py-2 text-white text-sm font-medium rounded-lg disabled:bg-gray-200 transition-colors
+                    ${groupMode === 'range'
+                      ? 'bg-rose-400 hover:bg-rose-500'
+                      : 'bg-teal-600 hover:bg-teal-700'}`}>
+                  {groupLoading ? '查询中…' : '确认'}
+                </button>
+                {groupQueried && !groupLoading && (
+                  <span className="text-xs text-gray-400">共 {groupRecords.length + groupTimeLogs.length + groupTodos.length} 条</span>
+                )}
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <StatsTable loading={groupLoading} queried={groupQueried}
