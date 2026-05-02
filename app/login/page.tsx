@@ -312,7 +312,7 @@ export default function LoginPage() {
       // client-trust network calls. Session cookie is set synchronously;
       // the background call completes after we've already navigated.
       setLoadStep('2/3 激活会话…')
-      setActive({ session: result.createdSessionId }).catch(() => {})
+      setActive!({ session: result.createdSessionId }).catch(() => {})
 
       // Step 3: Route by email (no need for userId — we already have the email)
       setLoadStep('3/3 获取权限…')
