@@ -326,8 +326,9 @@ export default function LoginPage() {
       window.location.href = url && url !== '/login'
         ? `${url}?_uid=${encodeURIComponent(uid)}`
         : '/login'
-    } catch {
-      setError('邮箱或密码错误，请联系管理员。')
+    } catch (err: any) {
+      const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || String(err)
+      setError(`登录失败：${msg}`)
       setLoading(false)
     }
   }
