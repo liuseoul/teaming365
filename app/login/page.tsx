@@ -305,16 +305,18 @@ export default function LoginPage() {
         password,
       })
 
-      if (result.status !== 'complete') {
-        setError(`登录未完成 (status: ${result.status})，请重试。`)
+      // Clerk v7: status and session may be on result or on signIn object itself
+      const status    = result?.status    ?? signIn?.status
+      const sessionId = result?.createdSessionId ?? signIn?.createdSessionId
+
+      if (status !== 'complete') {
+        setError(`登录未完成 (status: ${status})，请重试。`)
         setLoading(false); setLoadStep(''); return
       }
 
-      // Step 2: Fire setActive without awaiting — it hangs in Clerk v7 due to
-      // client-trust network calls. Session cookie is set synchronously;
-      // the background call completes after we've already navigated.
+      // Step 2: Activate session
       setLoadStep('2/3 激活会话…')
-      setActive!({ session: result.createdSessionId }).catch(() => {})
+      setActive!({ session: sessionId }).catch(() => {})
 
       // Step 3: Route by email (no need for userId — we already have the email)
       setLoadStep('3/3 获取权限…')
