@@ -137,8 +137,8 @@ function ArtisticMotto() {
 /* ── Main page ──────────────────────────────────────────────── */
 export default function LoginPage() {
   const router = useRouter()
-  const { signIn, setActive, isLoaded } = useSignIn()
-  const { signUp, isLoaded: signUpLoaded } = useSignUp()
+  const { signIn, setActive } = useSignIn()
+  const { signUp } = useSignUp()
   const { userId, isLoaded: authLoaded } = useAuth()
   const { signOut } = useClerk()
   const [step, setStep]         = useState<'login' | 'group' | 'reset-email' | 'reset-code' | 'register' | 'register-verify'>('login')
@@ -157,7 +157,6 @@ export default function LoginPage() {
   const [showRegPwd,     setShowRegPwd]     = useState(false)
 
   async function handleRegister() {
-    if (!signUpLoaded) return
     if (!regName.trim() || !regEmail.trim() || !regPassword) {
       setRegMsg('❌ 请填写姓名、邮箱和密码'); return
     }
@@ -188,7 +187,7 @@ export default function LoginPage() {
   }
 
   async function handleRegisterVerify() {
-    if (!signUpLoaded || !regCode.trim()) { setRegMsg('❌ 请输入验证码'); return }
+    if (!regCode.trim()) { setRegMsg('❌ 请输入验证码'); return }
     setRegLoading(true); setRegMsg('')
     try {
       const result = await signUp!.attemptEmailAddressVerification({ code: regCode.trim() })
@@ -228,7 +227,7 @@ export default function LoginPage() {
   const [showNewPwd,    setShowNewPwd]    = useState(false)
 
   async function handleSendResetCode() {
-    if (!isLoaded || !resetEmail.trim()) { setResetMsg('请输入邮箱'); return }
+    if (!resetEmail.trim()) { setResetMsg('请输入邮箱'); return }
     setResetLoading(true); setResetMsg('')
     try {
       await signIn!.create({ strategy: 'reset_password_email_code', identifier: resetEmail.trim().toLowerCase() })
@@ -293,7 +292,6 @@ export default function LoginPage() {
 
   async function handleLogin() {
     if (!email.trim() || !password) { setError('请输入邮箱和密码。'); return }
-    if (!isLoaded) { setError('认证服务加载中，请稍候再试。'); return }
     setLoading(true); setError('')
 
     try {
