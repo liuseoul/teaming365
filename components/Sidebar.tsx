@@ -8,21 +8,31 @@ import { useGroupKey } from '@/lib/useGroupKey'
 import { encField, decField } from '@/lib/e2e'
 
 const TYPE_LABELS: Record<string, string> = {
-  online_meeting:     '线上会议',
-  visiting:           '拜访',
-  business_travel:    '出差',
-  personal_leave:     '请假',
-  visiting_reception: '接待访客',
-  others:             '其他',
+  // ── 法律专项 ──────────────────────────────────────
+  court_hearing:          '开庭/庭审',
+  filing_deadline:        '提交截止日',
+  consultation:           '法律咨询',
+  statute_of_limitations: '诉讼时效',
+  // ── 通用日程 ──────────────────────────────────────
+  online_meeting:         '线上会议',
+  visiting:               '拜访',
+  business_travel:        '出差',
+  personal_leave:         '请假',
+  visiting_reception:     '接待访客',
+  others:                 '其他',
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  online_meeting:     'bg-blue-100 text-blue-700',
-  visiting:           'bg-purple-100 text-purple-700',
-  business_travel:    'bg-orange-100 text-orange-700',
-  personal_leave:     'bg-yellow-100 text-yellow-700',
-  visiting_reception: 'bg-green-100 text-green-700',
-  others:             'bg-gray-100 text-gray-600',
+  court_hearing:          'bg-red-100 text-red-700',
+  filing_deadline:        'bg-rose-100 text-rose-700',
+  consultation:           'bg-teal-100 text-teal-700',
+  statute_of_limitations: 'bg-pink-100 text-pink-800',
+  online_meeting:         'bg-blue-100 text-blue-700',
+  visiting:               'bg-purple-100 text-purple-700',
+  business_travel:        'bg-orange-100 text-orange-700',
+  personal_leave:         'bg-yellow-100 text-yellow-700',
+  visiting_reception:     'bg-green-100 text-green-700',
+  others:                 'bg-gray-100 text-gray-600',
 }
 
 const ROW_BG    = ['bg-white', 'bg-gray-50']
@@ -112,7 +122,7 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
         rows.push(
           <tr key={`ph-${pid || 'none'}-${r.id}`} className="bg-teal-50">
             <td colSpan={colSpan} className="px-2 py-1 border border-gray-200 text-teal-700 font-semibold text-xs">
-              {r.projects?.name || '无项目'}
+              {r.projects?.name || '无案件'}
             </td>
           </tr>
         )
@@ -155,7 +165,7 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
         rows.push(
           <tr key={`ph-${pid || 'none'}-${l.id}`} className="bg-teal-50">
             <td colSpan={colSpan} className="px-2 py-1 border border-gray-200 text-teal-700 font-semibold text-xs">
-              {l.projects?.name || '无项目'}
+              {l.projects?.name || '无案件'}
             </td>
           </tr>
         )
@@ -251,7 +261,7 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-gray-50 text-gray-500">
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-24">项目</th>
+                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-24">案件</th>
                 <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">内容</th>
                 {showOperator && <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-14">操作人</th>}
               </tr>
@@ -271,7 +281,7 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-gray-50 text-gray-500">
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-24">项目</th>
+                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-24">案件</th>
                 <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-20">时段</th>
                 <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-16">时长</th>
                 <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">内容</th>
@@ -741,7 +751,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         {/* Navigation */}
         <nav className="px-3 py-3 space-y-1 border-b border-gray-200 flex-shrink-0">
           {[
-            { href: `/${subdomain}/projects`, label: '项目概览', icon: '📋' },
+            { href: `/${subdomain}/projects`, label: '案件概览', icon: '📋' },
             ...(isAdmin ? [{ href: `/${subdomain}/admin`, label: '管理后台', icon: '⚙️' }] : []),
           ].map(item => (
             <button key={item.href} onClick={() => router.push(item.href)}

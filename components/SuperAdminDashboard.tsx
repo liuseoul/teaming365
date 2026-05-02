@@ -332,7 +332,7 @@ export default function SuperAdminDashboard({
                     <th className="pb-2 text-xs font-medium text-gray-500">邮箱</th>
                     <th className="pb-2 text-xs font-medium text-gray-500">访问路径</th>
                     <th className="pb-2 text-xs font-medium text-gray-500 text-right">成员数</th>
-                    <th className="pb-2 text-xs font-medium text-gray-500 text-right">项目数</th>
+                    <th className="pb-2 text-xs font-medium text-gray-500 text-right">案件数</th>
                     <th className="pb-2 text-xs font-medium text-gray-500">创建时间</th>
                   </tr>
                 </thead>

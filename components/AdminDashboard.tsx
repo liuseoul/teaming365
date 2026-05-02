@@ -91,14 +91,15 @@ export default function AdminDashboard({
   }, [keyPair, e2eReady, isFirstAdmin])
 
   // ── 新建项目 ────────────────────────────────────────────
-  const [projName,      setProjName]      = useState('')
-  const [projClient,    setProjClient]    = useState('')
-  const [projDesc,      setProjDesc]      = useState('')
-  const [projStatus,    setProjStatus]    = useState('active')
-  const [projAgreement, setProjAgreement] = useState('')
-  const [projCurrency,  setProjCurrency]  = useState('CNY')
-  const [projAmount,    setProjAmount]    = useState('')
-  const [collabParties, setCollabParties] = useState([''])
+  const [projName,       setProjName]       = useState('')
+  const [projClient,     setProjClient]     = useState('')
+  const [projDesc,       setProjDesc]       = useState('')
+  const [projStatus,     setProjStatus]     = useState('active')
+  const [projMatterType, setProjMatterType] = useState('')
+  const [projAgreement,  setProjAgreement]  = useState('')
+  const [projCurrency,   setProjCurrency]   = useState('CNY')
+  const [projAmount,     setProjAmount]     = useState('')
+  const [collabParties,  setCollabParties]  = useState([''])
   const [projSaving,    setProjSaving]    = useState(false)
   const [projMsg,       setProjMsg]       = useState('')
 
@@ -132,7 +133,7 @@ export default function AdminDashboard({
   }
 
   async function createProject() {
-    if (!projName.trim() || !projClient.trim()) { setProjMsg('❌ 项目名称和委托方为必填'); return }
+    if (!projName.trim() || !projClient.trim()) { setProjMsg('❌ 案件名称和委托方为必填'); return }
     setProjSaving(true); setProjMsg('')
     const parties = collabParties.map(p => p.trim()).filter(Boolean)
     const { error } = await supabase.from('projects').insert({
@@ -140,6 +141,7 @@ export default function AdminDashboard({
       client:                encField(projClient.trim(), groupKey) ?? projClient.trim(),
       description:           encField(projDesc.trim() || null, groupKey),
       status:                projStatus,
+      matter_type:           projMatterType || null,
       agreement_party:       encField(projAgreement || null, groupKey),
       service_fee_currency:  projCurrency,
       service_fee_amount:    projAmount ? parseFloat(projAmount) : null,
@@ -150,9 +152,9 @@ export default function AdminDashboard({
     if (error) {
       setProjMsg(`❌ 创建失败：${error.message}`)
     } else {
-      setProjMsg('✅ 项目已创建')
+      setProjMsg('✅ 案件已创建')
       setProjName(''); setProjClient(''); setProjDesc('')
-      setProjStatus('active'); setProjAgreement('')
+      setProjStatus('active'); setProjMatterType(''); setProjAgreement('')
       setProjCurrency('CNY'); setProjAmount(''); setCollabParties([''])
       setTimeout(() => router.refresh(), 800)
     }
@@ -239,7 +241,7 @@ export default function AdminDashboard({
             <button key={key} onClick={() => setTab(key)}
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors
                 ${tab === key ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              {key === 'projects' ? '项目管理' : '成员管理'}
+              {key === 'projects' ? '案件管理' : '成员管理'}
             </button>
           ))}
         </div>
@@ -250,20 +252,35 @@ export default function AdminDashboard({
           {tab === 'projects' && (
             <div className="max-w-3xl space-y-6">
               <section className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">新建项目</h2>
+                <h2 className="text-base font-semibold text-gray-900 mb-4">新建案件</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-sm text-gray-700 mb-1">项目名称 *</label>
+                    <label className="block text-sm text-gray-700 mb-1">案件名称 *</label>
                     <input value={projName} onChange={e => setProjName(e.target.value)}
-                      placeholder="请输入项目名称" className="input-field" />
+                      placeholder="请输入案件名称" className="input-field" />
                   </div>
                   <div className="col-span-2 sm:col-span-1">
                     <label className="block text-sm text-gray-700 mb-1">委托方 *</label>
                     <input value={projClient} onChange={e => setProjClient(e.target.value)}
                       placeholder="委托方名称" className="input-field" />
                   </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-sm text-gray-700 mb-1">案件类型</label>
+                    <select value={projMatterType} onChange={e => setProjMatterType(e.target.value)} className="input-field">
+                      <option value="">请选择（可选）</option>
+                      <option value="criminal">刑事</option>
+                      <option value="corporate">公司商事</option>
+                      <option value="family">婚姻家事</option>
+                      <option value="ip">知识产权</option>
+                      <option value="real_estate">房产</option>
+                      <option value="labor">劳动</option>
+                      <option value="administrative">行政</option>
+                      <option value="civil">民事</option>
+                      <option value="other">其他</option>
+                    </select>
+                  </div>
                   <div className="col-span-2">
-                    <label className="block text-sm text-gray-700 mb-1">项目描述</label>
+                    <label className="block text-sm text-gray-700 mb-1">案件描述</label>
                     <textarea value={projDesc} onChange={e => setProjDesc(e.target.value)}
                       placeholder="简要描述（可选）" rows={2} className="input-field resize-none" />
                   </div>
@@ -271,6 +288,7 @@ export default function AdminDashboard({
                     <label className="block text-sm text-gray-700 mb-1">初始状态</label>
                     <select value={projStatus} onChange={e => setProjStatus(e.target.value)} className="input-field">
                       <option value="active">进行中</option>
+                      <option value="pending">待处理</option>
                       <option value="cancelled">未签约</option>
                     </select>
                   </div>
@@ -314,13 +332,13 @@ export default function AdminDashboard({
                 </div>
                 {projMsg && <p className="mt-3 text-sm">{projMsg}</p>}
                 <button onClick={createProject} disabled={projSaving} className="mt-4 btn-primary">
-                  {projSaving ? '创建中…' : '创建项目'}
+                  {projSaving ? '创建中…' : '创建案件'}
                 </button>
               </section>
 
               <section className="bg-white rounded-xl border border-gray-200 p-6">
                 <h2 className="text-base font-semibold text-gray-900 mb-4">
-                  现有项目 <span className="text-gray-400 font-normal text-sm">（{displayProjects.length} 个）</span>
+                  现有案件 <span className="text-gray-400 font-normal text-sm">（{displayProjects.length} 个）</span>
                 </h2>
                 <div className="space-y-2">
                   {displayProjects.map((p: any) => (
@@ -332,7 +350,7 @@ export default function AdminDashboard({
                       <span className={`status-tag st-${p.status}`}>{STATUS_LABELS[p.status]}</span>
                     </div>
                   ))}
-                  {displayProjects.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">暂无项目</p>}
+                  {displayProjects.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">暂无案件</p>}
                 </div>
               </section>
             </div>

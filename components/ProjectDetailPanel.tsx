@@ -6,10 +6,18 @@ import { useGroupKey } from '@/lib/useGroupKey'
 import { encField, decField } from '@/lib/e2e'
 
 const STATUS_LABELS: Record<string, string> = {
-  active: '进行中',
-  delayed: '已取消',
+  active:    '进行中',
+  pending:   '待处理',
   completed: '已完成',
   cancelled: '未签约',
+  delayed:   '已终止',
+  archived:  '已归档',
+}
+
+const MATTER_TYPE_LABELS: Record<string, string> = {
+  criminal: '刑事', corporate: '公司商事', family: '婚姻家事',
+  ip: '知识产权', real_estate: '房产', labor: '劳动',
+  administrative: '行政', civil: '民事', other: '其他',
 }
 
 function formatDateTime(iso: string) {
@@ -51,6 +59,7 @@ type ProjectEditForm = {
   name: string
   client: string
   description: string
+  matter_type: string
   status: string
   agreement_party: string
   service_fee_currency: string
@@ -60,9 +69,11 @@ type ProjectEditForm = {
 
 const STATUS_EDIT_OPTIONS = [
   { value: 'active',    label: '进行中' },
+  { value: 'pending',   label: '待处理' },
   { value: 'completed', label: '已完成' },
   { value: 'cancelled', label: '未签约' },
-  { value: 'delayed',   label: '已取消' },
+  { value: 'delayed',   label: '已终止' },
+  { value: 'archived',  label: '已归档' },
 ]
 
 export default function ProjectDetailPanel({
@@ -80,7 +91,7 @@ export default function ProjectDetailPanel({
   // ── Edit project state (Task 5) ───────────────────────────
   const [showEditProject, setShowEditProject] = useState(false)
   const [editForm,        setEditForm]        = useState<ProjectEditForm>({
-    name: '', client: '', description: '', status: 'active',
+    name: '', client: '', description: '', matter_type: '', status: 'active',
     agreement_party: '', service_fee_currency: '', service_fee_amount: '',
     collaboration_parties: '',
   })
@@ -91,6 +102,7 @@ export default function ProjectDetailPanel({
       name:                  decField(project.name, groupKey) ?? project.name ?? '',
       client:                decField(project.client, groupKey) ?? project.client ?? '',
       description:           decField(project.description, groupKey) ?? project.description ?? '',
+      matter_type:           project.matter_type || '',
       status:                project.status || 'active',
       agreement_party:       decField(project.agreement_party, groupKey) ?? project.agreement_party ?? '',
       service_fee_currency:  project.service_fee_currency ?? '',
@@ -103,7 +115,7 @@ export default function ProjectDetailPanel({
   }
 
   async function saveEditProject() {
-    if (!editForm.name.trim()) { alert('项目名称不能为空'); return }
+    if (!editForm.name.trim()) { alert('案件名称不能为空'); return }
     if (!editForm.client.trim()) { alert('委托方不能为空'); return }
     setEditSaving(true)
     const parties = editForm.collaboration_parties
@@ -113,6 +125,7 @@ export default function ProjectDetailPanel({
       name:                  encField(editForm.name.trim(), groupKey) ?? editForm.name.trim(),
       client:                encField(editForm.client.trim(), groupKey) ?? editForm.client.trim(),
       description:           encField(editForm.description.trim() || null, groupKey),
+      matter_type:           editForm.matter_type || null,
       status:                editForm.status,
       agreement_party:       encField(editForm.agreement_party.trim() || null, groupKey),
       service_fee_currency:  editForm.service_fee_currency.trim() || null,
@@ -343,9 +356,11 @@ export default function ProjectDetailPanel({
                        focus:outline-none focus:ring-1 focus:ring-teal-500"
           >
             <option value="active">进行中</option>
-            <option value="delayed">已取消</option>
+            <option value="pending">待处理</option>
             <option value="completed">已完成</option>
             <option value="cancelled">未签约</option>
+            <option value="delayed">已终止</option>
+            <option value="archived">已归档</option>
           </select>
         )}
       </div>
@@ -583,14 +598,14 @@ export default function ProjectDetailPanel({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-base font-semibold text-gray-900">修改项目信息</h3>
+              <h3 className="text-base font-semibold text-gray-900">修改案件信息</h3>
               <button onClick={() => setShowEditProject(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  项目名称 <span className="text-red-500">*</span>
+                  案件名称 <span className="text-red-500">*</span>
                 </label>
                 <input type="text" value={editForm.name}
                   onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
@@ -605,10 +620,21 @@ export default function ProjectDetailPanel({
                   className="input-field" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">项目描述</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">案件描述</label>
                 <textarea value={editForm.description}
                   onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
                   rows={3} className="input-field resize-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">案件类型</label>
+                <select value={editForm.matter_type}
+                  onChange={e => setEditForm(f => ({ ...f, matter_type: e.target.value }))}
+                  className="input-field">
+                  <option value="">请选择（可选）</option>
+                  {Object.entries(MATTER_TYPE_LABELS).map(([v, l]) => (
+                    <option key={v} value={v}>{l}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">状态</label>

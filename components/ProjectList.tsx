@@ -12,12 +12,14 @@ import { encField, decField } from '@/lib/e2e'
 const STATUS_LABELS: Record<string, string> = {
   all:       '全部',
   active:    '进行中',
-  delayed:   '已取消',
+  pending:   '待处理',
   completed: '已完成',
   cancelled: '未签约',
+  delayed:   '已终止',
+  archived:  '已归档',
 }
 
-const STATUS_ORDER = ['all', 'active', 'delayed', 'completed', 'cancelled']
+const STATUS_ORDER = ['all', 'active', 'pending', 'completed', 'cancelled', 'delayed', 'archived']
 
 const ROW_COLORS = ['bg-white', 'bg-teal-50']
 
@@ -54,6 +56,7 @@ type EditForm = {
   name: string
   client: string
   description: string
+  matter_type: string
   agreement_party: string
   service_fee_currency: string
   service_fee_amount: string
@@ -62,8 +65,15 @@ type EditForm = {
 }
 
 const EMPTY_FORM: EditForm = {
-  name: '', client: '', description: '', agreement_party: '',
-  service_fee_currency: '', service_fee_amount: '', collaboration_parties: '', status: 'active',
+  name: '', client: '', description: '', matter_type: '',
+  agreement_party: '', service_fee_currency: '', service_fee_amount: '',
+  collaboration_parties: '', status: 'active',
+}
+
+const MATTER_TYPE_LABELS: Record<string, string> = {
+  criminal: '刑事', corporate: '公司商事', family: '婚姻家事',
+  ip: '知识产权', real_estate: '房产', labor: '劳动',
+  administrative: '行政', civil: '民事', other: '其他',
 }
 
 type StatsResult = { total: number; accepted: number; completed: number }
@@ -128,6 +138,7 @@ export default function ProjectList({
       name:                  project.name || '',
       client:                project.client || '',
       description:           project.description || '',
+      matter_type:           project.matter_type || '',
       agreement_party:       project.agreement_party || '',
       service_fee_currency:  project.service_fee_currency || '',
       service_fee_amount:    project.service_fee_amount != null ? String(project.service_fee_amount) : '',
@@ -143,7 +154,7 @@ export default function ProjectList({
   }
 
   async function saveEdit() {
-    if (!form.name.trim()) { alert('项目名称不能为空'); return }
+    if (!form.name.trim()) { alert('案件名称不能为空'); return }
     setSaving(true)
     const parties = form.collaboration_parties
       ? form.collaboration_parties.split(/[,，]/).map(s => s.trim()).filter(Boolean)
@@ -152,6 +163,7 @@ export default function ProjectList({
       name:                  encField(form.name.trim(), groupKey) ?? form.name.trim(),
       client:                encField(form.client.trim() || null, groupKey),
       description:           encField(form.description.trim() || null, groupKey),
+      matter_type:           form.matter_type || null,
       agreement_party:       encField(form.agreement_party.trim() || null, groupKey),
       service_fee_currency:  form.service_fee_currency.trim() || null,
       service_fee_amount:    form.service_fee_amount ? parseFloat(form.service_fee_amount) : null,
@@ -222,9 +234,11 @@ export default function ProjectList({
 
   const STATUS_EDIT = [
     { value: 'active',    label: '进行中' },
+    { value: 'pending',   label: '待处理' },
     { value: 'completed', label: '已完成' },
     { value: 'cancelled', label: '未签约' },
-    { value: 'delayed',   label: '已取消' },
+    { value: 'delayed',   label: '已终止' },
+    { value: 'archived',  label: '已归档' },
   ]
 
   return (
@@ -234,7 +248,7 @@ export default function ProjectList({
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
         <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-          <h1 className="text-lg font-semibold text-gray-900">项目概览</h1>
+          <h1 className="text-lg font-semibold text-gray-900">案件概览</h1>
           {isAdmin && (
             <button
               onClick={() => router.push(`/${subdomain}/admin`)}
@@ -242,7 +256,7 @@ export default function ProjectList({
                          text-sm font-medium px-4 py-2 rounded-lg transition-colors duration-150"
             >
               <span className="text-base leading-none">+</span>
-              <span>新建项目</span>
+              <span>新建案件</span>
             </button>
           )}
         </div>
@@ -268,19 +282,19 @@ export default function ProjectList({
             className="px-4 py-1.5 rounded-full text-sm font-medium bg-teal-500 text-white
                        hover:bg-teal-600 transition-colors duration-150"
           >
-            项目统计
+            案件统计
           </button>
 
-          {/* Task 8: 项目排序 button */}
+          {/* Task 8: 案件排序 button */}
           <button
             onClick={() => { setPendingSortMode(sortMode); setShowSortModal(true) }}
             className="px-4 py-1.5 rounded-full text-sm font-medium bg-indigo-500 text-white
                        hover:bg-indigo-600 transition-colors duration-150"
           >
-            项目排序
+            案件排序
           </button>
 
-          <span className="ml-auto text-xs text-gray-400">共 {projects.length} 个项目</span>
+          <span className="ml-auto text-xs text-gray-400">共 {projects.length} 个案件</span>
         </div>
 
         {/* Project list */}
@@ -288,7 +302,7 @@ export default function ProjectList({
           {filtered.length === 0 && (
             <div className="text-center py-16 text-gray-400">
               <div className="text-4xl mb-3">📂</div>
-              <div className="text-sm">暂无项目</div>
+              <div className="text-sm">暂无案件</div>
             </div>
           )}
 
@@ -311,6 +325,11 @@ export default function ProjectList({
                     <span className={`font-bold text-gray-900 truncate ${isCancelled ? 'line-through' : ''}`}>
                       {project.name}
                     </span>
+                    {project.matter_type && MATTER_TYPE_LABELS[project.matter_type] && (
+                      <span className="flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100">
+                        {MATTER_TYPE_LABELS[project.matter_type]}
+                      </span>
+                    )}
                     {isAdmin && (
                       <button
                         onClick={e => openEdit(e, project)}
@@ -378,14 +397,14 @@ export default function ProjectList({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-base font-semibold text-gray-900">修改项目信息</h3>
+              <h3 className="text-base font-semibold text-gray-900">修改案件信息</h3>
               <button onClick={closeEdit} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  项目名称 <span className="text-red-500">*</span>
+                  案件名称 <span className="text-red-500">*</span>
                 </label>
                 <input type="text" value={form.name} onChange={e => setField('name', e.target.value)}
                   className="input-field" autoFocus />
@@ -394,6 +413,15 @@ export default function ProjectList({
                 <label className="block text-sm font-medium text-gray-700 mb-1">委托方</label>
                 <input type="text" value={form.client} onChange={e => setField('client', e.target.value)}
                   className="input-field" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">案件类型</label>
+                <select value={form.matter_type} onChange={e => setField('matter_type', e.target.value)} className="input-field">
+                  <option value="">请选择（可选）</option>
+                  {Object.entries(MATTER_TYPE_LABELS).map(([v, l]) => (
+                    <option key={v} value={v}>{l}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">协议方</label>
@@ -460,7 +488,7 @@ export default function ProjectList({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-semibold text-gray-900">项目统计</h3>
+              <h3 className="text-base font-semibold text-gray-900">案件统计</h3>
               <button onClick={() => setShowProjStats(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
             </div>
             <div className="space-y-4">
@@ -515,15 +543,15 @@ export default function ProjectList({
             </p>
             <div className="space-y-3">
               <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-700">新立项目数</span>
+                <span className="text-sm text-gray-700">新立案件数</span>
                 <span className="text-lg font-bold text-teal-600">{statsResult.total}</span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-700">已承接项目数</span>
+                <span className="text-sm text-gray-700">已承接案件数</span>
                 <span className="text-lg font-bold text-teal-600">{statsResult.accepted}</span>
               </div>
               <div className="flex items-center justify-between py-2">
-                <span className="text-sm text-gray-700">已完成项目数</span>
+                <span className="text-sm text-gray-700">已完成案件数</span>
                 <span className="text-lg font-bold text-teal-600">{statsResult.completed}</span>
               </div>
             </div>
@@ -542,7 +570,7 @@ export default function ProjectList({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-semibold text-gray-900">项目排序</h3>
+              <h3 className="text-base font-semibold text-gray-900">案件排序</h3>
               <button onClick={() => setShowSortModal(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
             </div>
             <div className="space-y-3">
