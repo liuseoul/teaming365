@@ -165,15 +165,18 @@ export default function LoginPage() {
     if (regPassword.length < 8) { setRegMsg('❌ 密码至少 8 位'); return }
     setRegLoading(true); setRegMsg('')
     try {
-      const result = await signUp!.create({
+      const result: any = await signUp!.create({
         emailAddress: regEmail.trim().toLowerCase(),
         password: regPassword,
         firstName: regName.trim(),
       })
-      if (result.status === 'complete') {
+      const regStatus    = result?.status          ?? signUp?.status
+      const regUserId    = result?.createdUserId   ?? signUp?.createdUserId
+      const regSessionId = result?.createdSessionId ?? signUp?.createdSessionId
+      if (regStatus === 'complete') {
         // No email verification required — save profile and redirect
-        await saveProfile(result.createdUserId!)
-        await setActive!({ session: result.createdSessionId })
+        await saveProfile(regUserId!)
+        await setActive!({ session: regSessionId })
         window.location.href = '/pending'
       } else {
         // Email verification required
@@ -181,7 +184,7 @@ export default function LoginPage() {
         setStep('register-verify')
       }
     } catch (err: any) {
-      const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || '注册失败'
+      const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || JSON.stringify(err)
       setRegMsg(`❌ ${msg.includes('already') ? '该邮箱已被注册' : msg}`)
     } finally {
       setRegLoading(false)
@@ -192,16 +195,19 @@ export default function LoginPage() {
     if (!regCode.trim()) { setRegMsg('❌ 请输入验证码'); return }
     setRegLoading(true); setRegMsg('')
     try {
-      const result = await signUp!.attemptEmailAddressVerification({ code: regCode.trim() })
-      if (result.status === 'complete') {
-        await saveProfile(result.createdUserId!)
-        await setActive!({ session: result.createdSessionId })
+      const result: any = await signUp!.attemptEmailAddressVerification({ code: regCode.trim() })
+      const vStatus    = result?.status           ?? signUp?.status
+      const vUserId    = result?.createdUserId    ?? signUp?.createdUserId
+      const vSessionId = result?.createdSessionId ?? signUp?.createdSessionId
+      if (vStatus === 'complete') {
+        await saveProfile(vUserId!)
+        await setActive!({ session: vSessionId })
         window.location.href = '/pending'
       } else {
         setRegMsg('❌ 验证未完成，请重试')
       }
     } catch (err: any) {
-      setRegMsg(`❌ ${err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || '验证失败'}`)
+      setRegMsg(`❌ ${err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || JSON.stringify(err)}`)
     } finally {
       setRegLoading(false)
     }
