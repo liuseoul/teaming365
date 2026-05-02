@@ -612,11 +612,11 @@ export default function LoginPage() {
                   <p className={`text-sm ${error.startsWith('✅') ? 'text-green-700' : 'text-red-700'}`}>{error}</p>
                 </div>
               )}
-              <button onClick={handleLogin} disabled={loading || !isLoaded}
+              <button onClick={handleLogin} disabled={loading}
                 className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400
                            text-white font-medium py-2.5 rounded-lg transition-colors duration-150
                            focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
-                {!isLoaded ? '初始化中…' : loading ? (loadStep || '登录中…') : '登录'}
+                {loading ? (loadStep || '登录中…') : '登录'}
               </button>
               <div className="flex items-center justify-between text-xs">
                 <button type="button" onClick={() => { setStep('reset-email'); setResetEmail(email); setResetMsg('') }}
