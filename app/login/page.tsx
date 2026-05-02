@@ -299,14 +299,11 @@ export default function LoginPage() {
     try {
       // Step 1: Authenticate with Clerk
       setLoadStep('1/3 验证凭据…')
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('请求超时 — 请确认 clerk.teaming365.com DNS 已设为仅DNS（灰色云）')), 10000)
-      )
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: any = await Promise.race([
-        signIn.create({ identifier: email.trim().toLowerCase(), password }),
-        timeout,
-      ])
+      const result: any = await signIn.create({
+        identifier: email.trim().toLowerCase(),
+        password,
+      })
 
       if (result.status !== 'complete') {
         setError(`登录未完成 (status: ${result.status})，请重试。`)
