@@ -137,8 +137,10 @@ function ArtisticMotto() {
 /* ── Main page ──────────────────────────────────────────────── */
 export default function LoginPage() {
   const router = useRouter()
-  const signIn  = useSignIn()
-  const signUp  = useSignUp()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { signIn } = useSignIn() as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { signUp } = useSignUp() as any
   const { userId, isLoaded: authLoaded } = useAuth()
   const { setActive, signOut } = useClerk()
   const [step, setStep]         = useState<'login' | 'group' | 'reset-email' | 'reset-code' | 'register' | 'register-verify'>('login')
