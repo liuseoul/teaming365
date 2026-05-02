@@ -1,5 +1,5 @@
 'use client'
-import { useClerk } from '@clerk/nextjs'
+import { useClerk } from '@clerk/nextjs/legacy'
 
 export default function PendingPage() {
   const { signOut } = useClerk()
