@@ -139,8 +139,9 @@ export default function LoginPage() {
   const router = useRouter()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { signIn } = useSignIn() as any
+  // In Clerk v7 useSignUp() returns the resource directly (SignUpSignalValue)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { signUp } = useSignUp() as any
+  const signUp = useSignUp() as any
   const { userId, isLoaded: authLoaded } = useAuth()
   const { setActive, signOut } = useClerk()
   const [step, setStep]         = useState<'login' | 'group' | 'reset-email' | 'reset-code' | 'register' | 'register-verify'>('login')
