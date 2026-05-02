@@ -298,7 +298,7 @@ export default function LoginPage() {
     try {
       // Step 1: Authenticate with Clerk
       setLoadStep('1/3 验证凭据…')
-      const result = await signIn.create({
+      const result = await signIn!.create({
         identifier: email.trim().toLowerCase(),
         password,
       })
