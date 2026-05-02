@@ -293,12 +293,13 @@ export default function LoginPage() {
 
   async function handleLogin() {
     if (!email.trim() || !password) { setError('请输入邮箱和密码。'); return }
+    if (!signIn) { setError('认证服务未就绪，请刷新页面后重试。'); return }
     setLoading(true); setError('')
 
     try {
       // Step 1: Authenticate with Clerk
       setLoadStep('1/3 验证凭据…')
-      const result = await signIn!.create({
+      const result = await signIn.create({
         identifier: email.trim().toLowerCase(),
         password,
       })
