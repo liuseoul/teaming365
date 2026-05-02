@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { useClerk } from '@clerk/nextjs/legacy'
+import { useClerk } from '@clerk/nextjs'
 import { useE2E } from '@/lib/useE2E'
 import { useGroupKey } from '@/lib/useGroupKey'
 import { encField, decField } from '@/lib/e2e'
