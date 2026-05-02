@@ -139,7 +139,7 @@ function ArtisticMotto() {
 export default function LoginPage() {
   const router = useRouter()
   const { signIn, setActive, isLoaded } = useSignIn()
-  const { signUp, setActive: setActiveSignUp, isLoaded: signUpLoaded } = useSignUp()
+  const { signUp, isLoaded: signUpLoaded } = useSignUp()
   const { userId, isLoaded: authLoaded } = useAuth()
   const { signOut } = useClerk()
   const [step, setStep]         = useState<'login' | 'group' | 'reset-email' | 'reset-code' | 'register' | 'register-verify'>('login')
@@ -173,7 +173,7 @@ export default function LoginPage() {
       if (result.status === 'complete') {
         // No email verification required — save profile and redirect
         await saveProfile(result.createdUserId!)
-        await setActiveSignUp!({ session: result.createdSessionId })
+        await setActive!({ session: result.createdSessionId })
         window.location.href = '/pending'
       } else {
         // Email verification required
@@ -195,7 +195,7 @@ export default function LoginPage() {
       const result = await signUp!.attemptEmailAddressVerification({ code: regCode.trim() })
       if (result.status === 'complete') {
         await saveProfile(result.createdUserId!)
-        await setActiveSignUp!({ session: result.createdSessionId })
+        await setActive!({ session: result.createdSessionId })
         window.location.href = '/pending'
       } else {
         setRegMsg('❌ 验证未完成，请重试')
