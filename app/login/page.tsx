@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSignIn, useSignUp } from '@clerk/nextjs/legacy'
-import { useAuth, useClerk } from '@clerk/nextjs'
+import { useSignIn, useSignUp, useAuth, useClerk } from '@clerk/nextjs'
 
 type Group = { id: string; name: string; description: string; role: string; subdomain: string | null }
 
@@ -138,10 +137,10 @@ function ArtisticMotto() {
 /* ── Main page ──────────────────────────────────────────────── */
 export default function LoginPage() {
   const router = useRouter()
-  const { signIn, setActive } = useSignIn()
-  const { signUp } = useSignUp()
+  const signIn  = useSignIn()
+  const signUp  = useSignUp()
   const { userId, isLoaded: authLoaded } = useAuth()
-  const { signOut } = useClerk()
+  const { setActive, signOut } = useClerk()
   const [step, setStep]         = useState<'login' | 'group' | 'reset-email' | 'reset-code' | 'register' | 'register-verify'>('login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -293,7 +292,6 @@ export default function LoginPage() {
 
   async function handleLogin() {
     if (!email.trim() || !password) { setError('请输入邮箱和密码。'); return }
-    if (!signIn) { setError('认证服务未就绪，请刷新页面后重试。'); return }
     setLoading(true); setError('')
 
     try {
