@@ -785,7 +785,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         </div>
 
         {/* Navigation */}
-        <nav className="px-3 py-3 space-y-1 border-b border-gray-200 flex-shrink-0">
+        <nav className="px-3 py-3 space-y-1 border-b border-gray-200 flex-shrink-0 overflow-y-auto">
           {[
             { href: `/${subdomain}/dashboard`,  label: 'Today',     icon: '🗓️' },
             { href: `/${subdomain}/projects`,   label: 'Matters',   icon: '📋' },
