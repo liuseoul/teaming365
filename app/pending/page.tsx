@@ -5,7 +5,7 @@ import { useClerk, useAuth } from '@clerk/nextjs'
 function BrandName() {
   return (
     <span className="text-2xl font-semibold">
-      团队<span
+      Team<span
         className="font-black bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 bg-clip-text text-transparent"
         style={{ fontVariantNumeric: 'oldstyle-nums' }}
       >365</span>
@@ -30,9 +30,9 @@ export default function PendingPage() {
 
   async function handleCreate() {
     if (!groupNameCn.trim() || !groupNameEn.trim() || !managerNameEn.trim()) {
-      setCreateMsg('❌ 请填写所有字段'); return
+      setCreateMsg('❌ All fields are required'); return
     }
-    if (!userId) { setCreateMsg('❌ 未检测到登录状态，请刷新后重试'); return }
+    if (!userId) { setCreateMsg('❌ Auth service not ready — please refresh'); return }
     setCreating(true); setCreateMsg('')
     try {
       const res = await fetch('/api/auth/create-group-for-self', {
@@ -46,10 +46,10 @@ export default function PendingPage() {
         }),
       })
       const json = await res.json()
-      if (!res.ok) { setCreateMsg(`❌ ${json.error || '创建失败'}`); return }
+      if (!res.ok) { setCreateMsg(`❌ ${json.error || 'Creation failed'}`); return }
       window.location.href = `/${json.subdomain}/projects`
     } catch {
-      setCreateMsg('❌ 网络错误，请重试')
+      setCreateMsg('❌ Network error — please try again')
     } finally {
       setCreating(false)
     }
@@ -76,20 +76,20 @@ export default function PendingPage() {
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 border border-amber-200 mx-auto">
               <span className="text-xl">⏳</span>
             </div>
-            <h2 className="text-lg font-semibold text-gray-900">注册成功，等待分配</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Account created — awaiting access</h2>
             <p className="text-sm text-gray-500 leading-relaxed">
-              您的账号已创建。如果您受邀加入某个团队，请联系管理员通过邮箱将您加入；加入后即可访问案件工作台。
+              Your account is ready. If you&apos;ve been invited to a team, ask your admin to add you by email — you&apos;ll get instant access.
             </p>
             <div className="bg-gray-50 rounded-lg px-4 py-3 text-xs text-gray-400 text-left space-y-1">
-              <p>✉️ 将您的注册邮箱发给团队负责人</p>
-              <p>🔑 负责人可直接通过邮箱将您加入团队</p>
-              <p>✅ 加入后用同一账号密码登录即可</p>
+              <p>✉️ Share your email with your team admin</p>
+              <p>🔑 They can add you instantly using your email</p>
+              <p>✅ Sign back in with the same account once you&apos;ve been added</p>
             </div>
 
             {/* Divider */}
             <div className="flex items-center gap-3 text-gray-300">
               <div className="flex-1 h-px bg-gray-200" />
-              <span className="text-xs text-gray-400">或者</span>
+              <span className="text-xs text-gray-400">or</span>
               <div className="flex-1 h-px bg-gray-200" />
             </div>
 
@@ -98,45 +98,45 @@ export default function PendingPage() {
               onClick={() => setShowCreate(true)}
               className="w-full py-2.5 text-sm font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition-colors"
             >
-              创建我自己的团队 →
+              Create my own team →
             </button>
 
             <button
               onClick={() => signOut({ redirectUrl: '/login' })}
               className="w-full py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
             >
-              退出登录
+              Sign out
             </button>
           </div>
         ) : (
           /* ── Create team card ──────────────────────────── */
           <div className="bg-white rounded-2xl shadow-2xl p-8 mt-6 space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900">创建我的团队</h2>
-            <p className="text-sm text-gray-500">创建后您将成为团队负责人，可邀请成员加入。</p>
+            <h2 className="text-lg font-semibold text-gray-900">Create my team</h2>
+            <p className="text-sm text-gray-500">You&apos;ll be the team admin and can invite members.</p>
 
             <div className="space-y-3 text-left">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">团队名称（中文）<span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Team name (local) <span className="text-red-500">*</span></label>
                 <input type="text" value={groupNameCn} onChange={e => setGroupNameCn(e.target.value)}
-                  placeholder="如：趋境律师事务所"
+                  placeholder="e.g. Johnson & Partners"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">团队名称（英文）<span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Team name (English) <span className="text-red-500">*</span></label>
                 <input type="text" value={groupNameEn} onChange={e => setGroupNameEn(e.target.value)}
-                  placeholder="如：QujingLaw"
+                  placeholder="e.g. JohnsonPartners"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">您的英文名<span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Your name in English <span className="text-red-500">*</span></label>
                 <input type="text" value={managerNameEn} onChange={e => setManagerNameEn(e.target.value)}
-                  placeholder="如：ZhangSan"
+                  placeholder="e.g. JohnSmith"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
               </div>
 
               {previewSubdomain && (
                 <div className="bg-teal-50 border border-teal-200 rounded-lg px-4 py-2.5 text-xs text-gray-600">
-                  团队访问路径：<span className="font-mono font-semibold text-teal-700">teaming365.com/{previewSubdomain}</span>
+                  Team URL: <span className="font-mono font-semibold text-teal-700">teaming365.com/{previewSubdomain}</span>
                 </div>
               )}
             </div>
@@ -145,11 +145,11 @@ export default function PendingPage() {
 
             <button onClick={handleCreate} disabled={creating}
               className="w-full py-2.5 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 rounded-lg transition-colors">
-              {creating ? '创建中…' : '创建团队'}
+              {creating ? 'Creating…' : 'Create team'}
             </button>
             <button onClick={() => { setShowCreate(false); setCreateMsg('') }}
               className="w-full py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors">
-              ← 返回
+              ← Back
             </button>
           </div>
         )}

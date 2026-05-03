@@ -10,7 +10,7 @@ function BrandName({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const baseClass = size === 'lg' ? 'text-3xl' : size === 'md' ? 'text-2xl' : 'text-base'
   return (
     <span className={`font-semibold ${baseClass}`}>
-      团队<span
+      Team<span
         className="font-black bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 bg-clip-text text-transparent"
         style={{ fontVariantNumeric: 'oldstyle-nums' }}
       >365</span>
@@ -94,7 +94,7 @@ function TeamIllustration() {
 
 /* ── Right panel: artistic motto ────────────────────────────── */
 function ArtisticMotto() {
-  const lines = ['团队同行', '如同取经', '步步有成', '共享丰盛']
+  const lines = ['Together', 'Like a journey', 'Step by step', 'Share the harvest']
   return (
     <div className="flex flex-col items-center gap-1 select-none">
       {lines.map((line, i) => (
@@ -104,7 +104,7 @@ function ArtisticMotto() {
             ${i === 0 ? 'bg-amber-400' : i === 3 ? 'bg-teal-400' : 'bg-slate-500 group-hover:bg-slate-300'}`} />
 
           <span
-            className="text-3xl tracking-[0.25em] font-light transition-all duration-300"
+            className="text-2xl tracking-[0.15em] font-light transition-all duration-300"
             style={{
               color: i === 0 ? '#fbbf24'
                    : i === 3 ? '#2dd4bf'
@@ -112,7 +112,6 @@ function ArtisticMotto() {
               textShadow: i === 0 ? '0 0 24px rgba(251,191,36,0.4)'
                         : i === 3 ? '0 0 24px rgba(45,212,191,0.35)'
                         : 'none',
-              fontFamily: '"Noto Serif SC", "Source Han Serif CN", serif',
             }}
           >
             {line}
@@ -169,14 +168,14 @@ export default function LoginPage() {
 
   async function handleRegister() {
     if (!regName.trim() || !regEmail.trim() || !regPassword) {
-      setRegMsg('❌ 请填写姓名、邮箱和密码'); return
+      setRegMsg('❌ Please fill in your name, email and password'); return
     }
-    if (regPassword.length < 8) { setRegMsg('❌ 密码至少 8 位'); return }
+    if (regPassword.length < 8) { setRegMsg('❌ Password must be at least 8 characters'); return }
     setRegLoading(true); setRegMsg('')
     try {
       // Use the global Clerk singleton — it has all prototype methods and is mutated in place by create()
       const su = getClerkSignUp()
-      if (!su) { setRegMsg('❌ 认证服务未就绪，请刷新后重试'); setRegLoading(false); return }
+      if (!su) { setRegMsg('❌ Auth service not ready — please refresh'); setRegLoading(false); return }
       await su.create({
         emailAddress: regEmail.trim().toLowerCase(),
         password: regPassword,
@@ -199,18 +198,18 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || JSON.stringify(err)
-      setRegMsg(`❌ ${msg.includes('already') ? '该邮箱已被注册' : msg}`)
+      setRegMsg(`❌ ${msg.includes('already') ? 'This email is already registered' : msg}`)
     } finally {
       setRegLoading(false)
     }
   }
 
   async function handleRegisterVerify() {
-    if (!regCode.trim()) { setRegMsg('❌ 请输入验证码'); return }
+    if (!regCode.trim()) { setRegMsg('❌ Please enter the code'); return }
     setRegLoading(true); setRegMsg('')
     try {
       const su = getClerkSignUp()
-      if (!su) { setRegMsg('❌ 认证服务未就绪，请刷新后重试'); setRegLoading(false); return }
+      if (!su) { setRegMsg('❌ Auth service not ready — please refresh'); setRegLoading(false); return }
       await su.attemptEmailAddressVerification({ code: regCode.trim() })
       const vStatus    = su.status
       const vUserId    = su.createdUserId
@@ -223,7 +222,7 @@ export default function LoginPage() {
         setRegClerkUserId(uid)
         setStep('register-choose')
       } else {
-        setRegMsg(`❌ 验证未完成 (status: ${vStatus})，请重试`)
+        setRegMsg(`❌ Verification incomplete (status: ${vStatus}), please try again`)
       }
     } catch (err: any) {
       setRegMsg(`❌ ${err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || JSON.stringify(err)}`)
@@ -247,7 +246,11 @@ export default function LoginPage() {
 
   async function handleCreateGroup() {
     if (!regGroupNameCn.trim() || !regGroupNameEn.trim() || !regManagerNameEn.trim()) {
-      setRegGroupMsg('❌ 请填写所有字段'); return
+      setRegGroupMsg('❌ All fields are required'); return
+    }
+    const enCombined = regGroupNameEn.trim() + regManagerNameEn.trim()
+    if (!/[a-zA-Z0-9]/.test(enCombined)) {
+      setRegGroupMsg('❌ English name must contain letters or numbers'); return
     }
     setRegGroupSaving(true); setRegGroupMsg('')
     try {
@@ -262,10 +265,18 @@ export default function LoginPage() {
         }),
       })
       const json = await res.json()
-      if (!res.ok) { setRegGroupMsg(`❌ ${json.error || '创建失败'}`); return }
+      if (!res.ok) {
+        const errMsg = json.error || 'Creation failed'
+        if (errMsg.includes('already') || errMsg.includes('taken')) {
+          setRegGroupMsg(`❌ Path "${json.subdomain || ''}" is taken — try a different English name`)
+        } else {
+          setRegGroupMsg(`❌ ${errMsg}`)
+        }
+        return
+      }
       window.location.href = `/${json.subdomain}/projects`
     } catch {
-      setRegGroupMsg('❌ 网络错误，请重试')
+      setRegGroupMsg('❌ Network error — please try again')
     } finally {
       setRegGroupSaving(false)
     }
@@ -280,21 +291,21 @@ export default function LoginPage() {
   const [showNewPwd,    setShowNewPwd]    = useState(false)
 
   async function handleSendResetCode() {
-    if (!resetEmail.trim()) { setResetMsg('请输入邮箱'); return }
+    if (!resetEmail.trim()) { setResetMsg('Please enter your email'); return }
     setResetLoading(true); setResetMsg('')
     try {
       await signIn!.create({ strategy: 'reset_password_email_code', identifier: resetEmail.trim().toLowerCase() })
       setStep('reset-code')
     } catch (err: any) {
-      setResetMsg(`❌ ${err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || '发送失败，请检查邮箱'}`)
+      setResetMsg(`❌ ${err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || 'Failed to send — please check your email'}`)
     } finally {
       setResetLoading(false)
     }
   }
 
   async function handleVerifyReset() {
-    if (!resetCode.trim() || !resetNewPwd) { setResetMsg('请填写验证码和新密码'); return }
-    if (resetNewPwd.length < 8) { setResetMsg('密码至少 8 位'); return }
+    if (!resetCode.trim() || !resetNewPwd) { setResetMsg('Please enter the code and new password'); return }
+    if (resetNewPwd.length < 8) { setResetMsg('Password must be at least 8 characters'); return }
     setResetLoading(true); setResetMsg('')
     try {
       const result = await signIn!.attemptFirstFactor({
@@ -308,14 +319,14 @@ export default function LoginPage() {
         await signOut().catch(() => {})
         setEmail(resetEmail.trim().toLowerCase())
         setPassword('')
-        setError('✅ 密码已重置，请使用新密码登录')
+        setError('✅ Password reset. Sign in with your new password.')
         setStep('login')
         setResetCode(''); setResetNewPwd(''); setShowNewPwd(false)
       } else {
-        setResetMsg('❌ 重置未完成，请重试')
+        setResetMsg('❌ Reset incomplete, please try again')
       }
     } catch (err: any) {
-      setResetMsg(`❌ ${err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || '验证失败'}`)
+      setResetMsg(`❌ ${err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || 'Verification failed'}`)
     } finally {
       setResetLoading(false)
     }
@@ -346,12 +357,12 @@ export default function LoginPage() {
   const [groups,   setGroups]   = useState<Group[]>([])
 
   async function handleLogin() {
-    if (!email.trim() || !password) { setError('请输入邮箱和密码。'); return }
+    if (!email.trim() || !password) { setError('Please enter your email and password.'); return }
     setLoading(true); setError('')
 
     try {
       // Step 1: Authenticate with Clerk
-      setLoadStep('1/3 验证凭据…')
+      setLoadStep('1/3 Verifying credentials…')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result: any = await signIn.create({
         identifier: email.trim().toLowerCase(),
@@ -363,16 +374,16 @@ export default function LoginPage() {
       const sessionId = result?.createdSessionId ?? signIn?.createdSessionId
 
       if (status !== 'complete') {
-        setError(`登录未完成 (status: ${status})，请重试。`)
+        setError(`Sign-in incomplete (status: ${status}), please try again.`)
         setLoading(false); setLoadStep(''); return
       }
 
       // Step 2: Activate session
-      setLoadStep('2/3 激活会话…')
+      setLoadStep('2/3 Activating session…')
       setActive!({ session: sessionId }).catch(() => {})
 
       // Step 3: Route by email (no need for userId — we already have the email)
-      setLoadStep('3/3 获取权限…')
+      setLoadStep('3/3 Getting access…')
       const res = await fetch('/api/auth/get-redirect', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -385,7 +396,7 @@ export default function LoginPage() {
         : '/login'
     } catch (err: any) {
       const msg = err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || String(err)
-      setError(`登录失败：${msg}`)
+      setError(`Sign-in failed: ${msg}`)
       setLoading(false)
     }
   }
@@ -408,7 +419,7 @@ export default function LoginPage() {
               <span className="text-white text-2xl font-bold">Q</span>
             </div>
             <h1 className="text-white text-2xl"><BrandName /></h1>
-            <p className="text-slate-400 text-sm mt-2">选择要进入的团队</p>
+            <p className="text-slate-400 text-sm mt-2">Select a team</p>
           </div>
           <div className="bg-white rounded-2xl shadow-2xl p-6 space-y-3">
             {groups.map(g => (
@@ -424,13 +435,13 @@ export default function LoginPage() {
                     ${g.role === 'first_admin'  ? 'bg-purple-100 text-purple-700'
                     : g.role === 'second_admin' ? 'bg-blue-100 text-blue-700'
                     : 'bg-gray-100 text-gray-600'}`}>
-                    {g.role === 'first_admin' ? '一级管理员' : g.role === 'second_admin' ? '二级管理员' : '成员'}
+                    {g.role === 'first_admin' ? 'Primary Admin' : g.role === 'second_admin' ? 'Secondary Admin' : 'Member'}
                   </span>
                 </div>
               </button>
             ))}
           </div>
-          <p className="text-center text-slate-500 text-xs mt-6">选择后可在侧边栏切换团队。</p>
+          <p className="text-center text-slate-500 text-xs mt-6">You can switch teams from the sidebar.</p>
         </div>
       </div>
     )
@@ -446,12 +457,12 @@ export default function LoginPage() {
               <span className="text-white text-2xl font-black">Q</span>
             </div>
             <h1 className="text-white mb-1"><BrandName size="lg" /></h1>
-            <p className="text-slate-400 text-sm">重置密码</p>
+            <p className="text-slate-400 text-sm">Reset password</p>
           </div>
           <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-4">
-            <p className="text-sm text-gray-600">输入您的登录邮箱，我们将发送验证码。</p>
+            <p className="text-sm text-gray-600">Enter your email and we&apos;ll send you a reset code.</p>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input type="email" value={resetEmail} onChange={e => setResetEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSendResetCode()}
                 placeholder="your@email.com" autoFocus
@@ -460,11 +471,11 @@ export default function LoginPage() {
             {resetMsg && <p className="text-sm text-red-600">{resetMsg}</p>}
             <button onClick={handleSendResetCode} disabled={resetLoading}
               className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium py-2.5 rounded-lg transition-colors">
-              {resetLoading ? '发送中…' : '发送验证码'}
+              {resetLoading ? 'Sending…' : 'Send reset code'}
             </button>
             <button onClick={() => { setStep('login'); setResetMsg('') }}
               className="w-full text-sm text-gray-500 hover:text-gray-700 py-1 transition-colors">
-              ← 返回登录
+              ← Back to sign in
             </button>
           </div>
         </div>
@@ -482,38 +493,38 @@ export default function LoginPage() {
               <span className="text-white text-2xl font-black">Q</span>
             </div>
             <h1 className="text-white mb-1"><BrandName size="lg" /></h1>
-            <p className="text-slate-400 text-sm">输入验证码并设置新密码</p>
+            <p className="text-slate-400 text-sm">Enter the code and set a new password</p>
           </div>
           <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-4">
-            <p className="text-sm text-gray-500">验证码已发送至 <span className="font-medium text-gray-800">{resetEmail}</span></p>
+            <p className="text-sm text-gray-500">Code sent to <span className="font-medium text-gray-800">{resetEmail}</span></p>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">验证码</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
               <input type="text" value={resetCode} onChange={e => setResetCode(e.target.value)}
-                placeholder="6 位数字" autoFocus inputMode="numeric" maxLength={6}
+                placeholder="6-digit code" autoFocus inputMode="numeric" maxLength={6}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400 tracking-widest text-center" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">新密码</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
               <div className="relative">
                 <input type={showNewPwd ? 'text' : 'password'} value={resetNewPwd}
                   onChange={e => setResetNewPwd(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleVerifyReset()}
-                  placeholder="至少 8 位" autoComplete="new-password"
+                  placeholder="Min 8 characters" autoComplete="new-password"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400 pr-14" />
                 <button type="button" onClick={() => setShowNewPwd(v => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-700">
-                  {showNewPwd ? '隐藏' : '显示'}
+                  {showNewPwd ? 'Hide' : 'Show'}
                 </button>
               </div>
             </div>
             {resetMsg && <p className="text-sm text-red-600">{resetMsg}</p>}
             <button onClick={handleVerifyReset} disabled={resetLoading}
               className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium py-2.5 rounded-lg transition-colors">
-              {resetLoading ? '验证中…' : '确认重置'}
+              {resetLoading ? 'Verifying…' : 'Reset password'}
             </button>
             <button onClick={() => { setStep('reset-email'); setResetMsg('') }}
               className="w-full text-sm text-gray-500 hover:text-gray-700 py-1 transition-colors">
-              ← 重新发送
+              ← Resend code
             </button>
           </div>
         </div>
@@ -531,24 +542,24 @@ export default function LoginPage() {
               <span className="text-white text-2xl font-black">Q</span>
             </div>
             <h1 className="text-white mb-1"><BrandName size="lg" /></h1>
-            <p className="text-slate-400 text-sm">注册成功！请选择下一步</p>
+            <p className="text-slate-400 text-sm">Account created! What would you like to do?</p>
           </div>
           <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-4">
             <div>
               <button
                 onClick={() => setStep('register-create-group')}
                 className="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 rounded-lg transition-colors">
-                创建我的团队
+                Create my team
               </button>
-              <p className="text-xs text-gray-400 mt-1.5 text-center">适合需要建立团队的负责人</p>
+              <p className="text-xs text-gray-400 mt-1.5 text-center">For team leads setting up their workspace</p>
             </div>
             <div>
               <button
                 onClick={() => { window.location.href = '/pending' }}
                 className="w-full border border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900 font-medium py-2.5 rounded-lg transition-colors">
-                等待加入已有团队
+                Join an existing team
               </button>
-              <p className="text-xs text-gray-400 mt-1.5 text-center">适合受邀加入他人团队的成员</p>
+              <p className="text-xs text-gray-400 mt-1.5 text-center">For members who&apos;ve been invited to join</p>
             </div>
           </div>
         </div>
@@ -567,40 +578,40 @@ export default function LoginPage() {
               <span className="text-white text-2xl font-black">Q</span>
             </div>
             <h1 className="text-white mb-1"><BrandName size="lg" /></h1>
-            <p className="text-slate-400 text-sm">创建您的团队</p>
+            <p className="text-slate-400 text-sm">Create a new team</p>
           </div>
           <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">团队名称（中文）<span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Team name (local) <span className="text-red-500">*</span></label>
               <input type="text" value={regGroupNameCn} onChange={e => setRegGroupNameCn(e.target.value)}
-                placeholder="趋境（北京）科技有限公司" autoFocus
+                placeholder="e.g. Johnson & Partners" autoFocus
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">团队名称（英文）<span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Team name (English) <span className="text-red-500">*</span></label>
               <input type="text" value={regGroupNameEn} onChange={e => setRegGroupNameEn(e.target.value)}
-                placeholder="QuJing Technology"
+                placeholder="e.g. JohnsonPartners"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">您的英文名 <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Your name in English <span className="text-red-500">*</span></label>
               <input type="text" value={regManagerNameEn} onChange={e => setRegManagerNameEn(e.target.value)}
-                placeholder="ZhangSan"
+                placeholder="e.g. JohnSmith"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
             </div>
             {previewSubdomain && (
               <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-4 py-2.5 border border-gray-200">
-                团队访问路径：<span className="font-mono font-semibold text-teal-700">teaming365.com/{previewSubdomain}</span>
+                Team URL: <span className="font-mono font-semibold text-teal-700">teaming365.com/{previewSubdomain}</span>
               </div>
             )}
             {regGroupMsg && <p className="text-sm text-red-600">{regGroupMsg}</p>}
             <button onClick={handleCreateGroup} disabled={regGroupSaving}
               className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium py-2.5 rounded-lg transition-colors">
-              {regGroupSaving ? '创建中…' : '创建团队'}
+              {regGroupSaving ? 'Creating…' : 'Create team'}
             </button>
             <button onClick={() => { setStep('register-choose'); setRegGroupMsg('') }}
               className="w-full text-sm text-gray-500 hover:text-gray-700 py-1 transition-colors">
-              ← 返回
+              ← Back
             </button>
           </div>
         </div>
@@ -618,49 +629,49 @@ export default function LoginPage() {
               <span className="text-white text-2xl font-black">Q</span>
             </div>
             <h1 className="text-white mb-1"><BrandName size="lg" /></h1>
-            <p className="text-slate-400 text-sm">创建新账号</p>
+            <p className="text-slate-400 text-sm">Create account</p>
           </div>
           <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">姓名 <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full name <span className="text-red-500">*</span></label>
               <input type="text" value={regName} onChange={e => setRegName(e.target.value)}
-                placeholder="您的真实姓名" autoFocus
+                placeholder="Your full name" autoFocus
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">邮箱 <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-red-500">*</span></label>
               <input type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)}
                 placeholder="your@email.com"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">密码 <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password <span className="text-red-500">*</span></label>
               <div className="relative">
                 <input type={showRegPwd ? 'text' : 'password'} value={regPassword}
                   onChange={e => setRegPassword(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleRegister()}
-                  placeholder="至少 8 位" autoComplete="new-password"
+                  placeholder="Min 8 characters" autoComplete="new-password"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400 pr-14" />
                 <button type="button" onClick={() => setShowRegPwd(v => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-700">
-                  {showRegPwd ? '隐藏' : '显示'}
+                  {showRegPwd ? 'Hide' : 'Show'}
                 </button>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">所属机构</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
               <input type="text" value={regAffiliation} onChange={e => setRegAffiliation(e.target.value)}
-                placeholder="公司 / 律所 / 学校（可选）"
+                placeholder="Firm / school (optional)"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
             </div>
             {regMsg && <p className="text-sm text-red-600">{regMsg}</p>}
             <button onClick={handleRegister} disabled={regLoading}
               className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium py-2.5 rounded-lg transition-colors">
-              {regLoading ? '注册中…' : '注册账号'}
+              {regLoading ? 'Creating…' : 'Create account'}
             </button>
             <button onClick={() => { setStep('login'); setRegMsg('') }}
               className="w-full text-sm text-gray-500 hover:text-gray-700 py-1 transition-colors">
-              ← 返回登录
+              ← Back to sign in
             </button>
           </div>
         </div>
@@ -678,25 +689,25 @@ export default function LoginPage() {
               <span className="text-white text-2xl font-black">Q</span>
             </div>
             <h1 className="text-white mb-1"><BrandName size="lg" /></h1>
-            <p className="text-slate-400 text-sm">验证邮箱</p>
+            <p className="text-slate-400 text-sm">Verify email</p>
           </div>
           <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-4">
-            <p className="text-sm text-gray-500">验证码已发送至 <span className="font-medium text-gray-800">{regEmail}</span></p>
+            <p className="text-sm text-gray-500">Code sent to <span className="font-medium text-gray-800">{regEmail}</span></p>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">验证码</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Code</label>
               <input type="text" value={regCode} onChange={e => setRegCode(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleRegisterVerify()}
-                placeholder="6 位数字" autoFocus inputMode="numeric" maxLength={6}
+                placeholder="6-digit code" autoFocus inputMode="numeric" maxLength={6}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400 tracking-widest text-center" />
             </div>
             {regMsg && <p className="text-sm text-red-600">{regMsg}</p>}
             <button onClick={handleRegisterVerify} disabled={regLoading}
               className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium py-2.5 rounded-lg transition-colors">
-              {regLoading ? '验证中…' : '完成注册'}
+              {regLoading ? 'Verifying…' : 'Verify & finish'}
             </button>
             <button onClick={() => { setStep('register'); setRegMsg(''); setRegCode('') }}
               className="w-full text-sm text-gray-500 hover:text-gray-700 py-1 transition-colors">
-              ← 返回修改信息
+              ← Back
             </button>
           </div>
         </div>
@@ -721,13 +732,13 @@ export default function LoginPage() {
               <span className="text-white text-2xl font-black">Q</span>
             </div>
             <h1 className="text-white mb-1"><BrandName size="lg" /></h1>
-            <p className="text-slate-400 text-sm">请使用邮箱账号登录</p>
+            <p className="text-slate-400 text-sm">Sign in with your email</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-2xl p-8">
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">邮箱</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input
                   type="email" value={email}
                   onChange={e => setEmail(e.target.value)} onKeyDown={handleKeyDown}
@@ -738,11 +749,11 @@ export default function LoginPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                 <input
                   type="password" value={password}
                   onChange={e => setPassword(e.target.value)} onKeyDown={handleKeyDown}
-                  placeholder="输入密码" autoComplete="current-password"
+                  placeholder="Enter password" autoComplete="current-password"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm
                              focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent
                              placeholder:text-gray-400"
@@ -759,22 +770,22 @@ export default function LoginPage() {
                 className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400
                            text-white font-medium py-2.5 rounded-lg transition-colors duration-150
                            focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2">
-                {loading ? (loadStep || '登录中…') : '登录'}
+                {loading ? (loadStep || 'Signing in…') : 'Sign in'}
               </button>
               <div className="flex items-center justify-between text-xs">
                 <button type="button" onClick={() => { setStep('reset-email'); setResetEmail(email); setResetMsg('') }}
                   className="text-gray-400 hover:text-teal-600 transition-colors">
-                  忘记密码？
+                  Forgot password?
                 </button>
                 <button type="button" onClick={() => { setStep('register'); setRegMsg('') }}
                   className="text-teal-600 hover:text-teal-800 font-medium transition-colors">
-                  注册新账号 →
+                  Create account →
                 </button>
               </div>
             </div>
           </div>
 
-          <p className="text-center text-slate-500 text-xs mt-6">可自行注册账号，注册后联系管理员加入团队。</p>
+          <p className="text-center text-slate-500 text-xs mt-6">Register and ask your team admin to add you.</p>
         </div>
 
         {/* Right: artistic motto */}
