@@ -48,13 +48,16 @@ export default async function SubdomainAdminPage({
     redirect(`/${subdomain}/projects`)
   }
 
-  const [{ data: profile }, { data: projects }, { data: members }] = await Promise.all([
+  const [{ data: profile }, { data: projects }, { data: members }, { data: clients }] = await Promise.all([
     supabase.from('profiles').select('id, name').eq('id', userId).single(),
     supabase.from('projects')
-      .select('id, name, client, status, created_at')
+      .select('id, name, client, status, created_at, client_id')
       .eq('group_id', group.id).order('created_at', { ascending: false }),
     supabase.from('group_members')
-      .select('role, created_at, profiles(id, name, email)')
+      .select('role, title, created_at, profiles(id, name, email)')
+      .eq('group_id', group.id).order('created_at', { ascending: false }),
+    supabase.from('clients')
+      .select('id, name, contact_name, contact_email, contact_phone, notes, created_at')
       .eq('group_id', group.id).order('created_at', { ascending: false }),
   ])
 
@@ -66,6 +69,7 @@ export default async function SubdomainAdminPage({
     name:       m.profiles?.name  || '',
     email:      m.profiles?.email || '',
     role:       m.role,
+    title:      m.title || null,
     created_at: m.created_at,
   }))
 
@@ -77,6 +81,7 @@ export default async function SubdomainAdminPage({
       groupId={group.id}
       group={group}
       subdomain={subdomain}
+      clients={clients || []}
     />
   )
 }

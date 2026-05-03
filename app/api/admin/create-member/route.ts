@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   )
 
   const body = await req.json()
-  const { callerUserId, name, email, password, role, groupId } = body
+  const { callerUserId, name, email, password, role, title, groupId } = body
   const userId = callerUserId
   if (!userId) return NextResponse.json({ error: '未授权' }, { status: 401 })
   if (!groupId) return NextResponse.json({ error: '缺少团队参数' }, { status: 400 })
@@ -69,6 +69,7 @@ export async function POST(req: Request) {
     group_id: groupId,
     user_id:  clerkUser.id,
     role:     assignedRole,
+    title:    title || null,
   })
 
   if (memberError) {
