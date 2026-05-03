@@ -144,7 +144,7 @@ export default function LoginPage() {
   // Helper: get the actual Clerk SignUp singleton which has all prototype methods
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getClerkSignUp = (): any => (window as any).Clerk?.client?.signUp
-  const [step, setStep]         = useState<'login' | 'group' | 'reset-email' | 'reset-code' | 'register' | 'register-verify'>('login')
+  const [step, setStep]         = useState<'login' | 'group' | 'reset-email' | 'reset-code' | 'register' | 'register-verify' | 'register-choose' | 'register-create-group'>('login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState('')
@@ -158,6 +158,14 @@ export default function LoginPage() {
   const [regLoading,     setRegLoading]     = useState(false)
   const [regMsg,         setRegMsg]         = useState('')
   const [showRegPwd,     setShowRegPwd]     = useState(false)
+  const [regClerkUserId, setRegClerkUserId] = useState('')
+
+  // ── Group creation state (post-register) ────────────────
+  const [regGroupNameCn,   setRegGroupNameCn]   = useState('')
+  const [regGroupNameEn,   setRegGroupNameEn]   = useState('')
+  const [regManagerNameEn, setRegManagerNameEn] = useState('')
+  const [regGroupSaving,   setRegGroupSaving]   = useState(false)
+  const [regGroupMsg,      setRegGroupMsg]      = useState('')
 
   async function handleRegister() {
     if (!regName.trim() || !regEmail.trim() || !regPassword) {
@@ -179,10 +187,11 @@ export default function LoginPage() {
       const regUserId    = su.createdUserId
       const regSessionId = su.createdSessionId
       if (regStatus === 'complete') {
-        // No email verification required — save profile and redirect
+        // No email verification required — save profile and go to choose step
         await saveProfile(regUserId!)
         await setActive!({ session: regSessionId })
-        window.location.href = '/pending'
+        setRegClerkUserId(regUserId!)
+        setStep('register-choose')
       } else {
         // Email verification required — su.prepareEmailAddressVerification is now available after create()
         await su.prepareEmailAddressVerification({ strategy: 'email_code' })
@@ -207,9 +216,12 @@ export default function LoginPage() {
       const vUserId    = su.createdUserId
       const vSessionId = su.createdSessionId
       if (vStatus === 'complete') {
-        await saveProfile(vUserId ?? su.createdUserId ?? '')
-        await setActive!({ session: vSessionId ?? su.createdSessionId })
-        window.location.href = '/pending'
+        const uid = vUserId ?? su.createdUserId ?? ''
+        const sid = vSessionId ?? su.createdSessionId
+        await saveProfile(uid)
+        await setActive!({ session: sid })
+        setRegClerkUserId(uid)
+        setStep('register-choose')
       } else {
         setRegMsg(`❌ 验证未完成 (status: ${vStatus})，请重试`)
       }
@@ -231,6 +243,32 @@ export default function LoginPage() {
         affiliation: regAffiliation.trim() || null,
       }),
     })
+  }
+
+  async function handleCreateGroup() {
+    if (!regGroupNameCn.trim() || !regGroupNameEn.trim() || !regManagerNameEn.trim()) {
+      setRegGroupMsg('❌ 请填写所有字段'); return
+    }
+    setRegGroupSaving(true); setRegGroupMsg('')
+    try {
+      const res = await fetch('/api/auth/create-group-for-self', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clerkUserId: regClerkUserId,
+          groupNameCn: regGroupNameCn.trim(),
+          groupNameEn: regGroupNameEn.trim(),
+          managerNameEn: regManagerNameEn.trim(),
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) { setRegGroupMsg(`❌ ${json.error || '创建失败'}`); return }
+      window.location.href = `/${json.subdomain}/projects`
+    } catch {
+      setRegGroupMsg('❌ 网络错误，请重试')
+    } finally {
+      setRegGroupSaving(false)
+    }
   }
 
   // ── Password reset state ─────────────────────────────────
@@ -474,6 +512,93 @@ export default function LoginPage() {
             <button onClick={() => { setStep('reset-email'); setResetMsg('') }}
               className="w-full text-sm text-gray-500 hover:text-gray-700 py-1 transition-colors">
               ← 重新发送
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Register: choose next step ───────────────────────── */
+  if (step === 'register-choose') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 flex items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-600 mb-4">
+              <span className="text-white text-2xl font-black">Q</span>
+            </div>
+            <h1 className="text-white mb-1"><BrandName size="lg" /></h1>
+            <p className="text-slate-400 text-sm">注册成功！请选择下一步</p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-4">
+            <div>
+              <button
+                onClick={() => setStep('register-create-group')}
+                className="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2.5 rounded-lg transition-colors">
+                创建我的团队
+              </button>
+              <p className="text-xs text-gray-400 mt-1.5 text-center">适合需要建立团队的负责人</p>
+            </div>
+            <div>
+              <button
+                onClick={() => { window.location.href = '/pending' }}
+                className="w-full border border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900 font-medium py-2.5 rounded-lg transition-colors">
+                等待加入已有团队
+              </button>
+              <p className="text-xs text-gray-400 mt-1.5 text-center">适合受邀加入他人团队的成员</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Register: create group ────────────────────────────── */
+  if (step === 'register-create-group') {
+    const previewSubdomain = (regGroupNameEn + regManagerNameEn).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 40)
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 flex items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-600 mb-4">
+              <span className="text-white text-2xl font-black">Q</span>
+            </div>
+            <h1 className="text-white mb-1"><BrandName size="lg" /></h1>
+            <p className="text-slate-400 text-sm">创建您的团队</p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">团队名称（中文）<span className="text-red-500">*</span></label>
+              <input type="text" value={regGroupNameCn} onChange={e => setRegGroupNameCn(e.target.value)}
+                placeholder="趋境（北京）科技有限公司" autoFocus
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">团队名称（英文）<span className="text-red-500">*</span></label>
+              <input type="text" value={regGroupNameEn} onChange={e => setRegGroupNameEn(e.target.value)}
+                placeholder="QuJing Technology"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">您的英文名 <span className="text-red-500">*</span></label>
+              <input type="text" value={regManagerNameEn} onChange={e => setRegManagerNameEn(e.target.value)}
+                placeholder="ZhangSan"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400" />
+            </div>
+            {previewSubdomain && (
+              <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-4 py-2.5 border border-gray-200">
+                团队访问路径：<span className="font-mono font-semibold text-teal-700">teaming365.com/{previewSubdomain}</span>
+              </div>
+            )}
+            {regGroupMsg && <p className="text-sm text-red-600">{regGroupMsg}</p>}
+            <button onClick={handleCreateGroup} disabled={regGroupSaving}
+              className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-medium py-2.5 rounded-lg transition-colors">
+              {regGroupSaving ? '创建中…' : '创建团队'}
+            </button>
+            <button onClick={() => { setStep('register-choose'); setRegGroupMsg('') }}
+              className="w-full text-sm text-gray-500 hover:text-gray-700 py-1 transition-colors">
+              ← 返回
             </button>
           </div>
         </div>

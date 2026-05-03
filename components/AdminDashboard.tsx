@@ -112,6 +112,12 @@ export default function AdminDashboard({
   const [memSaving,   setMemSaving]   = useState(false)
   const [memMsg,      setMemMsg]      = useState('')
 
+  // ── 添加已注册用户 ──────────────────────────────────────
+  const [addEmail,   setAddEmail]   = useState('')
+  const [addRole,    setAddRole]    = useState('member')
+  const [addSaving,  setAddSaving]  = useState(false)
+  const [addMsg,     setAddMsg]     = useState('')
+
   // ── 重置密码 ────────────────────────────────────────────
   const [resetId,       setResetId]       = useState('')
   const [resetPwd,      setResetPwd]      = useState('')
@@ -159,6 +165,29 @@ export default function AdminDashboard({
       setTimeout(() => router.refresh(), 800)
     }
     setProjSaving(false)
+  }
+
+  async function addExistingMember() {
+    if (!addEmail.trim()) { setAddMsg('❌ 请输入邮箱'); return }
+    setAddSaving(true); setAddMsg('')
+    const res = await fetch('/api/admin/add-existing-member', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ callerUserId: profile.id, email: addEmail.trim(), role: addRole, groupId }),
+    })
+    const json = await res.json()
+    if (!res.ok) {
+      setAddMsg(`❌ ${json.error || '操作失败'}`)
+    } else {
+      // Try to add to E2E group key
+      if (keyPair && isFirstAdmin && json.userId) {
+        addMemberToGroup(profile.id as string, groupId, keyPair, json.userId).catch(() => {})
+      }
+      setAddMsg(`✅ 已将"${json.name}"添加到团队`)
+      setAddEmail('')
+      setTimeout(() => router.refresh(), 800)
+    }
+    setAddSaving(false)
   }
 
   async function createMember() {
@@ -359,6 +388,25 @@ export default function AdminDashboard({
           {/* ──────── 成员管理 ──────── */}
           {tab === 'members' && (
             <div className="max-w-3xl space-y-6">
+              <section className="bg-white rounded-xl border border-gray-200 p-6">
+                <h3 className="text-base font-semibold text-gray-900 mb-1">添加已注册用户</h3>
+                <p className="text-xs text-gray-500 mb-4">如果对方已在本平台注册账号，可直接通过邮箱将其加入团队。</p>
+                <div className="flex gap-3">
+                  <input type="email" value={addEmail} onChange={e => setAddEmail(e.target.value)}
+                    placeholder="对方的注册邮箱" className="input-field flex-1" />
+                  {isFirstAdmin && (
+                    <select value={addRole} onChange={e => setAddRole(e.target.value)} className="input-field w-36">
+                      <option value="member">成员</option>
+                      <option value="second_admin">二级管理员</option>
+                    </select>
+                  )}
+                  <button onClick={addExistingMember} disabled={addSaving} className="btn-primary whitespace-nowrap">
+                    {addSaving ? '添加中…' : '添加'}
+                  </button>
+                </div>
+                {addMsg && <p className="mt-2 text-sm">{addMsg}</p>}
+              </section>
+
               <section className="bg-white rounded-xl border border-gray-200 p-6">
                 <h2 className="text-base font-semibold text-gray-900 mb-4">创建成员</h2>
                 <div className="grid grid-cols-2 gap-4">

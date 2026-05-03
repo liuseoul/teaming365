@@ -53,9 +53,19 @@ export default async function SuperAdminPage({
       `)
       .eq('group_members.role', 'first_admin')
       .order('created_at', { ascending: false }),
-    supabase.from('group_members').select('group_id'),
+    supabase.from('group_members').select('group_id, user_id'),
     supabase.from('projects').select('group_id'),
   ])
+
+  // Fetch profiles with no group membership (pending users)
+  const { data: allProfiles } = await supabase
+    .from('profiles')
+    .select('id, name, email, created_at')
+    .eq('is_super_admin', false)
+    .order('created_at', { ascending: false })
+
+  const memberUserIds = new Set((allMembers || []).map((m: any) => m.user_id))
+  const pending = (allProfiles || []).filter(p => !memberUserIds.has(p.id))
 
   // Build count maps
   const memberCountMap: Record<string, number> = {}
@@ -77,6 +87,7 @@ export default async function SuperAdminPage({
     <SuperAdminDashboard
       profile={profile}
       groups={enrichedGroups}
+      pendingUsers={pending}
     />
   )
 }
