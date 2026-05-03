@@ -56,6 +56,7 @@ type Reminder = {
   deleted_by_name: string | null
   deleted_at: string | null
   assigned_to_name: string | null
+  pre_alert_days: number[]
   profiles?: { name: string }
 }
 
@@ -345,18 +346,21 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
   const [remEndTime,   setRemEndTime]   = useState('')
   const [remContent,   setRemContent]   = useState('')
   const [remAssigned,  setRemAssigned]  = useState('')
+  const [remPreAlerts, setRemPreAlerts] = useState<number[]>([])
   const [remSaving,    setRemSaving]    = useState(false)
 
   const [selectedRem, setSelectedRem] = useState<Reminder | null>(null)
   const [detailMode,  setDetailMode]  = useState<'view' | 'edit'>('view')
-  const [editType,      setEditType]      = useState('others')
-  const [editStartDate, setEditStartDate] = useState(todayStr)
-  const [editEndDate_,  setEditEndDate_]  = useState(todayStr)
-  const [editStartTime, setEditStartTime] = useState('')
-  const [editEndTime,   setEditEndTime]   = useState('')
-  const [editContent,   setEditContent]   = useState('')
-  const [editAssigned,  setEditAssigned]  = useState('')
-  const [editSaving,    setEditSaving]    = useState(false)
+  const [editType,       setEditType]       = useState('others')
+  const [editStartDate,  setEditStartDate]  = useState(todayStr)
+  const [editEndDate_,   setEditEndDate_]   = useState(todayStr)
+  const [editStartTime,  setEditStartTime]  = useState('')
+  const [editEndTime,    setEditEndTime]    = useState('')
+  const [editContent,    setEditContent]    = useState('')
+  const [editAssigned,   setEditAssigned]   = useState('')
+  const [editPreAlerts,  setEditPreAlerts]  = useState<number[]>([])
+  const [editSaving,     setEditSaving]     = useState(false)
+  const [showCourtDates, setShowCourtDates] = useState(true)
 
   const [showPersonalStats,  setShowPersonalStats]  = useState(false)
   const [personalDate,       setPersonalDate]       = useState(todayStr)
@@ -457,6 +461,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
       content: encField(remContent.trim(), groupKey) ?? remContent.trim(), type: remType,
       start_time: remStartTime || null, end_time: remEndTime || null,
       assigned_to_name: remAssigned || null,
+      pre_alert_days: remPreAlerts,
       group_id: groupId,
       created_by: profile!.id,
     })
@@ -468,6 +473,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
   function resetAddForm() {
     setRemContent(''); setRemStartDate(todayStr); setRemEndDate_(todayStr)
     setRemType('others'); setRemStartTime(''); setRemEndTime(''); setRemAssigned('')
+    setRemPreAlerts([])
   }
 
   function openDetailRem(r: Reminder) { setSelectedRem(r); setDetailMode('view') }
@@ -481,6 +487,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
     setEditEndTime(r.end_time || '')
     setEditContent(r.content)
     setEditAssigned(r.assigned_to_name || '')
+    setEditPreAlerts(r.pre_alert_days || [])
     setDetailMode('edit')
   }
 
@@ -494,6 +501,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
       content: encField(editContent.trim(), groupKey) ?? editContent.trim(), type: editType,
       start_time: editStartTime || null, end_time: editEndTime || null,
       assigned_to_name: editAssigned || null,
+      pre_alert_days: editPreAlerts,
     }).eq('id', selectedRem!.id).eq('group_id', groupId)
     setEditSaving(false)
     if (error) { alert('Save failed: ' + error.message); return }
@@ -701,6 +709,13 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
       : variant === 'upcoming'          ? `${rowBg} border-gray-200 hover:border-teal-300 hover:bg-teal-50/40`
       : variant === 'past'              ? 'bg-gray-50 border-gray-100 opacity-60 hover:opacity-80'
       : 'bg-red-50/40 border-red-100 opacity-50 hover:opacity-70'
+
+    // Feature 15 — countdown days
+    const daysUntil = variant === 'upcoming' && !isToday
+      ? Math.ceil((new Date(primDate).getTime() - new Date(todayStr).getTime()) / 86400000)
+      : null
+    const isPreAlertDay = daysUntil !== null && (r.pre_alert_days || []).includes(daysUntil)
+
     return (
       <button onClick={() => openDetailRem(r)}
         className={`w-full text-left flex items-start gap-2 px-2 py-2 rounded-lg border transition-all ${cls}`}>
@@ -723,6 +738,15 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
             {variant === 'upcoming' && r.type && r.type !== 'others' && (
               <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${TYPE_COLORS[r.type] || TYPE_COLORS.others}`}>
                 {TYPE_LABELS[r.type] || r.type}
+              </span>
+            )}
+            {/* Feature 15 — countdown badge */}
+            {daysUntil !== null && (
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full
+                ${isPreAlertDay ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-300'
+                  : daysUntil <= 7 ? 'bg-rose-50 text-rose-500'
+                  : 'bg-gray-100 text-gray-400'}`}>
+                {isPreAlertDay ? `⚡ ${daysUntil}d` : `${daysUntil}d`}
               </span>
             )}
             {variant === 'upcoming' && r.assigned_to_name && (
@@ -763,7 +787,8 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         {/* Navigation */}
         <nav className="px-3 py-3 space-y-1 border-b border-gray-200 flex-shrink-0">
           {[
-            { href: `/${subdomain}/projects`, label: 'Matters', icon: '📋' },
+            { href: `/${subdomain}/dashboard`, label: 'Today', icon: '🗓️' },
+            { href: `/${subdomain}/projects`,  label: 'Matters', icon: '📋' },
             ...(isAdmin ? [{ href: `/${subdomain}/admin`, label: 'Admin', icon: '⚙️' }] : []),
           ].map(item => (
             <button key={item.href} onClick={() => router.push(item.href)}
@@ -817,6 +842,90 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
           </div>
 
           <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1">
+
+            {/* Feature 15 — Pre-alerts firing today */}
+            {(() => {
+              const preAlerts = upcoming.filter(r => {
+                if (!r.pre_alert_days || r.pre_alert_days.length === 0) return false
+                const d = Math.ceil((new Date(remPrimaryDate(r)).getTime() - new Date(todayStr).getTime()) / 86400000)
+                return r.pre_alert_days.includes(d)
+              })
+              if (preAlerts.length === 0) return null
+              return (
+                <div className="mb-2">
+                  <div className="flex items-center gap-1 px-1 pb-1">
+                    <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider">⚡ Pre-alerts</span>
+                  </div>
+                  <div className="space-y-1">
+                    {preAlerts.map(r => {
+                      const d = Math.ceil((new Date(remPrimaryDate(r)).getTime() - new Date(todayStr).getTime()) / 86400000)
+                      return (
+                        <button key={r.id} onClick={() => openDetailRem(r)}
+                          className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors">
+                          <span className="text-[10px] font-bold text-orange-700 min-w-8">⚡ {d}d</span>
+                          <span className="text-xs text-orange-800 truncate">{r.content}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="h-px bg-gray-200 mt-2" />
+                </div>
+              )
+            })()}
+
+            {/* Feature 16 — Court dates (next 14 days) */}
+            {(() => {
+              const courtTypes = ['court_hearing', 'filing_deadline']
+              const cutoff = new Date(todayStr)
+              cutoff.setDate(cutoff.getDate() + 14)
+              const cutoffStr = cutoff.toISOString().slice(0, 10)
+              const courtDates = upcoming.filter(r =>
+                courtTypes.includes(r.type) && remPrimaryDate(r) <= cutoffStr
+              )
+              if (courtDates.length === 0) return null
+              return (
+                <div className="mb-2">
+                  <button
+                    onClick={() => setShowCourtDates(v => !v)}
+                    className="flex items-center gap-1 px-1 pb-1 w-full">
+                    <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">⚖️ Court Dates</span>
+                    <span className="text-[10px] text-rose-400 ml-1">({courtDates.length})</span>
+                    <span className="text-[10px] text-gray-400 ml-auto">{showCourtDates ? '▲' : '▼'}</span>
+                  </button>
+                  {showCourtDates && (
+                    <div className="space-y-1">
+                      {courtDates.map(r => {
+                        const primDate = remPrimaryDate(r)
+                        const d = Math.ceil((new Date(primDate).getTime() - new Date(todayStr).getTime()) / 86400000)
+                        const isUrgent = d <= 3
+                        return (
+                          <button key={r.id} onClick={() => openDetailRem(r)}
+                            className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-colors
+                              ${isUrgent ? 'border-rose-300 bg-rose-50 hover:bg-rose-100' : 'border-red-100 bg-red-50/50 hover:bg-red-50'}`}>
+                            <span className={`text-[10px] font-bold min-w-8 ${isUrgent ? 'text-rose-700' : 'text-red-500'}`}>
+                              {primDate.slice(5, 7)}/{primDate.slice(8, 10)}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <span className={`text-xs truncate block ${isUrgent ? 'text-rose-800 font-medium' : 'text-red-700'}`}>
+                                {r.content}
+                              </span>
+                              <span className={`text-[10px] ${TYPE_COLORS[r.type] || ''} px-1 rounded`}>
+                                {TYPE_LABELS[r.type]}
+                              </span>
+                            </div>
+                            <span className={`text-[10px] font-semibold flex-shrink-0 ${isUrgent ? 'text-rose-700' : 'text-red-400'}`}>
+                              {d === 0 ? 'Today' : `${d}d`}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <div className="h-px bg-gray-200 mt-2" />
+                </div>
+              )
+            })()}
+
             {visibleUpcoming.map((r, i) => <ReminderRow key={r.id} r={r} index={i} variant="upcoming" />)}
             {hasMoreUpcoming && (
               <button onClick={() => setShowAllUpcoming(true)}
@@ -917,6 +1026,22 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                 <MemberSelector current={remAssigned} onSet={setRemAssigned} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Pre-alert reminders</label>
+                <div className="flex gap-3">
+                  {[30, 7, 1].map(d => (
+                    <label key={d} className="flex items-center gap-1.5 cursor-pointer">
+                      <input type="checkbox"
+                        checked={remPreAlerts.includes(d)}
+                        onChange={e => setRemPreAlerts(prev =>
+                          e.target.checked ? [...prev, d] : prev.filter(x => x !== d)
+                        )}
+                        className="rounded border-gray-300 text-teal-600" />
+                      <span className="text-xs text-gray-600">{d === 1 ? '1 day' : `${d} days`}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes <span className="text-red-500">*</span></label>
@@ -1028,6 +1153,22 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                     <MemberSelector current={editAssigned} onSet={setEditAssigned} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Pre-alert reminders</label>
+                    <div className="flex gap-3">
+                      {[30, 7, 1].map(d => (
+                        <label key={d} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox"
+                            checked={editPreAlerts.includes(d)}
+                            onChange={e => setEditPreAlerts(prev =>
+                              e.target.checked ? [...prev, d] : prev.filter(x => x !== d)
+                            )}
+                            className="rounded border-gray-300 text-teal-600" />
+                          <span className="text-xs text-gray-600">{d === 1 ? '1 day' : `${d} days`}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Notes <span className="text-red-500">*</span></label>
