@@ -322,8 +322,10 @@ export default function LoginPage() {
   }
 
   // Already logged in — redirect away from login page
+  // Skip during registration steps: user just set their session, don't auto-redirect yet
   useEffect(() => {
     if (!authLoaded || !userId) return
+    if (['register', 'register-verify', 'register-choose', 'register-create-group'].includes(step)) return
     fetch('/api/auth/get-redirect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -338,7 +340,7 @@ export default function LoginPage() {
           : '/login'
       })
       .catch(() => { window.location.href = '/projects' })
-  }, [authLoaded, userId])
+  }, [authLoaded, userId, step])
   const [loading,  setLoading]  = useState(false)
   const [loadStep, setLoadStep] = useState('')
   const [groups,   setGroups]   = useState<Group[]>([])
