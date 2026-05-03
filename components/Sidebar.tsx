@@ -8,18 +8,18 @@ import { useGroupKey } from '@/lib/useGroupKey'
 import { encField, decField } from '@/lib/e2e'
 
 const TYPE_LABELS: Record<string, string> = {
-  // ── 法律专项 ──────────────────────────────────────
-  court_hearing:          '开庭/庭审',
-  filing_deadline:        '提交截止日',
-  consultation:           '法律咨询',
-  statute_of_limitations: '诉讼时效',
-  // ── 通用日程 ──────────────────────────────────────
-  online_meeting:         '线上会议',
-  visiting:               '拜访',
-  business_travel:        '出差',
-  personal_leave:         '请假',
-  visiting_reception:     '接待访客',
-  others:                 '其他',
+  // ── Legal ─────────────────────────────────────────────────
+  court_hearing:          'Court Hearing',
+  filing_deadline:        'Filing Deadline',
+  consultation:           'Legal Consultation',
+  statute_of_limitations: 'Limitation Period',
+  // ── General ───────────────────────────────────────────────
+  online_meeting:         'Online Meeting',
+  visiting:               'Client Visit',
+  business_travel:        'Business Trip',
+  personal_leave:         'Day Off',
+  visiting_reception:     'Meet Client',
+  others:                 'Other',
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -81,7 +81,15 @@ function remDateLabel(r: Reminder) {
 function remFullDateLabel(r: Reminder, today: string) {
   const sd = remPrimaryDate(r), ed = remEndDate(r)
   const fmt = (s: string) => `${s.slice(0,4)}/${s.slice(5,7)}/${s.slice(8,10)}`
-  return sd === ed ? (sd === today ? '今天 · ' : '') + fmt(sd) : fmt(sd) + ' – ' + fmt(ed)
+  return sd === ed ? (sd === today ? 'Today · ' : '') + fmt(sd) : fmt(sd) + ' – ' + fmt(ed)
+}
+
+function reminderUrgencyDot(primaryDate: string, today: string): string {
+  if (primaryDate < today)   return 'bg-red-500'
+  if (primaryDate === today) return 'bg-amber-400'
+  const diff = (new Date(primaryDate).getTime() - new Date(today).getTime()) / 86400000
+  if (diff <= 3)             return 'bg-yellow-400'
+  return 'bg-teal-400'
 }
 
 function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, groupByProject }: {
@@ -90,15 +98,15 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
   showOperator: boolean
   groupByProject?: boolean
 }) {
-  if (loading) return <p className="text-sm text-gray-400 text-center py-8">查询中…</p>
-  if (!queried) return <p className="text-sm text-gray-400 text-center py-8">请选择日期后点击确认</p>
+  if (loading) return <p className="text-sm text-gray-400 text-center py-8">Loading…</p>
+  if (!queried) return <p className="text-sm text-gray-400 text-center py-8">Select a date and click Confirm</p>
   if (records.length === 0 && timeLogs.length === 0 && todos.length === 0)
-    return <p className="text-sm text-gray-400 text-center py-8">该日暂无记录</p>
+    return <p className="text-sm text-gray-400 text-center py-8">No records for this period</p>
 
   function durMins(started: string, finished: string | null) {
     if (!finished) return '—'
     const m = Math.round((new Date(finished).getTime() - new Date(started).getTime()) / 60000)
-    return m > 0 ? `${m} 分钟` : '—'
+    return m > 0 ? `${m} min` : '—'
   }
 
   // Build table rows for records with optional project sub-headers
@@ -122,7 +130,7 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
         rows.push(
           <tr key={`ph-${pid || 'none'}-${r.id}`} className="bg-teal-50">
             <td colSpan={colSpan} className="px-2 py-1 border border-gray-200 text-teal-700 font-semibold text-xs">
-              {r.projects?.name || '无案件'}
+              {r.projects?.name || 'Unassigned'}
             </td>
           </tr>
         )
@@ -142,8 +150,8 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
   function renderTimeLogRows() {
     if (!groupByProject) {
       return timeLogs.map((l: any) => {
-        const startStr = new Date(l.started_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-        const endStr   = l.finished_at ? new Date(l.finished_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'
+        const startStr = new Date(l.started_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        const endStr   = l.finished_at ? new Date(l.finished_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'
         return (
           <tr key={l.id} className="hover:bg-gray-50">
             <td className="px-2 py-1.5 border border-gray-200 text-gray-600">{l.projects?.name || '—'}</td>
@@ -165,13 +173,13 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
         rows.push(
           <tr key={`ph-${pid || 'none'}-${l.id}`} className="bg-teal-50">
             <td colSpan={colSpan} className="px-2 py-1 border border-gray-200 text-teal-700 font-semibold text-xs">
-              {l.projects?.name || '无案件'}
+              {l.projects?.name || 'Unassigned'}
             </td>
           </tr>
         )
       }
-      const startStr = new Date(l.started_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-      const endStr   = l.finished_at ? new Date(l.finished_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'
+      const startStr = new Date(l.started_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      const endStr   = l.finished_at ? new Date(l.finished_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'
       rows.push(
         <tr key={l.id} className="hover:bg-gray-50">
           <td className="px-2 py-1.5 border border-gray-200 text-gray-600">{l.projects?.name || '—'}</td>
@@ -193,9 +201,9 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
         <table className="w-full text-xs border-collapse">
           <thead>
             <tr className="bg-gray-50 text-gray-500">
-              <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">内容</th>
-              <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-10">负责</th>
-              <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-16">完成时间</th>
+              <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">Content</th>
+              <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-10">Assignee</th>
+              <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-16">Done at</th>
             </tr>
           </thead>
           <tbody>
@@ -204,7 +212,7 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
                 <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{t.content}</td>
                 <td className="px-2 py-1.5 border border-gray-200 text-center text-teal-600 font-bold">{t.assignee_abbrev || '—'}</td>
                 <td className="px-2 py-1.5 border border-gray-200 text-gray-500">
-                  {t.completed_at ? new Date(t.completed_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                  {t.completed_at ? new Date(t.completed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
                 </td>
               </tr>
             ))}
@@ -239,7 +247,7 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
                     <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{t.content}</td>
                     <td className="px-2 py-1.5 border border-gray-200 text-center text-teal-600 font-bold w-10">{t.assignee_abbrev || '—'}</td>
                     <td className="px-2 py-1.5 border border-gray-200 text-gray-500 w-16">
-                      {t.completed_at ? new Date(t.completed_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                      {t.completed_at ? new Date(t.completed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
                     </td>
                   </tr>
                 ))}
@@ -256,14 +264,14 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
       {records.length > 0 && (
         <div>
           <h4 className="text-sm font-semibold text-gray-700 mb-2">
-            工作记录 <span className="text-gray-400 font-normal">({records.length})</span>
+            Work Records <span className="text-gray-400 font-normal">({records.length})</span>
           </h4>
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-gray-50 text-gray-500">
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-24">案件</th>
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">内容</th>
-                {showOperator && <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-14">操作人</th>}
+                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-24">Matter</th>
+                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">Content</th>
+                {showOperator && <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-14">By</th>}
               </tr>
             </thead>
             <tbody>
@@ -276,16 +284,16 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
       {timeLogs.length > 0 && (
         <div>
           <h4 className="text-sm font-semibold text-gray-700 mb-2">
-            工时记录 <span className="text-gray-400 font-normal">({timeLogs.length})</span>
+            Time Entries <span className="text-gray-400 font-normal">({timeLogs.length})</span>
           </h4>
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-gray-50 text-gray-500">
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-24">案件</th>
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-20">时段</th>
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-16">时长</th>
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">内容</th>
-                {showOperator && <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-14">操作人</th>}
+                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-24">Matter</th>
+                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-20">Period</th>
+                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-16">Duration</th>
+                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">Content</th>
+                {showOperator && <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-14">By</th>}
               </tr>
             </thead>
             <tbody>
@@ -298,7 +306,7 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
       {todos.length > 0 && (
         <div>
           <h4 className="text-sm font-semibold text-gray-700 mb-2">
-            已完成待办 <span className="text-gray-400 font-normal">({todos.length})</span>
+            Completed Todos <span className="text-gray-400 font-normal">({todos.length})</span>
           </h4>
           {renderTodos()}
         </div>
@@ -318,6 +326,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
 
   const isAdmin    = ['first_admin', 'second_admin'].includes(profile?.role || '')
   const todayStr   = new Date().toISOString().split('T')[0]
+  const today      = new Date().toISOString().slice(0, 10)
 
   const [currentUserId,   setCurrentUserId]   = useState<string | null>(null)
   const [reminders,       setReminders]       = useState<Reminder[]>([])
@@ -439,9 +448,9 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
   const hasMoreUpcoming = !showAllUpcoming && upcoming.length > MAX_UPCOMING
 
   async function saveReminder() {
-    if (!remStartDate || !remEndDate_ || !remContent.trim()) { alert('请填写必填项'); return }
-    if (remEndDate_ < remStartDate) { alert('结束日期不能早于开始日期'); return }
-    if (remEndTime && remStartTime && remEndTime <= remStartTime) { alert('结束时间必须晚于开始时间'); return }
+    if (!remStartDate || !remEndDate_ || !remContent.trim()) { alert('Please fill in all required fields'); return }
+    if (remEndDate_ < remStartDate) { alert('End date cannot be before start date'); return }
+    if (remEndTime && remStartTime && remEndTime <= remStartTime) { alert('End time must be after start time'); return }
     setRemSaving(true)
     const { error } = await supabase.from('reminders').insert({
       due_date: remStartDate, start_date: remStartDate, end_date: remEndDate_,
@@ -451,7 +460,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
       group_id: groupId,
       created_by: profile!.id,
     })
-    if (error) { alert('保存失败：' + error.message) }
+    if (error) { alert('Save failed: ' + error.message) }
     else { setShowAddRem(false); resetAddForm(); await loadReminders() }
     setRemSaving(false)
   }
@@ -476,9 +485,9 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
   }
 
   async function saveEditRem() {
-    if (!editStartDate || !editEndDate_ || !editContent.trim()) { alert('请填写必填项'); return }
-    if (editEndDate_ < editStartDate) { alert('结束日期不能早于开始日期'); return }
-    if (editEndTime && editStartTime && editEndTime <= editStartTime) { alert('结束时间必须晚于开始时间'); return }
+    if (!editStartDate || !editEndDate_ || !editContent.trim()) { alert('Please fill in all required fields'); return }
+    if (editEndDate_ < editStartDate) { alert('End date cannot be before start date'); return }
+    if (editEndTime && editStartTime && editEndTime <= editStartTime) { alert('End time must be after start time'); return }
     setEditSaving(true)
     const { error } = await supabase.from('reminders').update({
       due_date: editStartDate, start_date: editStartDate, end_date: editEndDate_,
@@ -487,18 +496,18 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
       assigned_to_name: editAssigned || null,
     }).eq('id', selectedRem!.id).eq('group_id', groupId)
     setEditSaving(false)
-    if (error) { alert('保存失败：' + error.message); return }
+    if (error) { alert('Save failed: ' + error.message); return }
     closeDetailRem(); await loadReminders()
   }
 
   async function softDeleteReminder(id: string) {
-    if (!confirm('确认删除该日程？删除后仍可在历史记录中查看。')) return
+    if (!confirm('Delete this event? It will still be visible in history.')) return
     const { data: prof } = await supabase.from('profiles').select('name').eq('id', profile!.id).single()
     const { error } = await supabase.from('reminders').update({
       deleted: true, deleted_by: profile!.id,
-      deleted_by_name: prof?.name || '未知', deleted_at: new Date().toISOString(),
+      deleted_by_name: prof?.name || 'Unknown', deleted_at: new Date().toISOString(),
     }).eq('id', id).eq('group_id', groupId)
-    if (error) { alert('删除失败：' + error.message); return }
+    if (error) { alert('Delete failed: ' + error.message); return }
     closeDetailRem(); await loadReminders()
   }
 
@@ -506,14 +515,14 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
     const { error } = await supabase.from('reminders').update({
       deleted: false, deleted_by: null, deleted_by_name: null, deleted_at: null,
     }).eq('id', id).eq('group_id', groupId)
-    if (error) { alert('恢复失败：' + error.message); return }
+    if (error) { alert('Restore failed: ' + error.message); return }
     closeDetailRem(); await loadReminders()
   }
 
   async function hardDeleteReminder(id: string) {
-    if (!confirm('确认永久删除？此操作不可恢复。')) return
+    if (!confirm('Permanently delete? This cannot be undone.')) return
     const { error } = await supabase.from('reminders').delete().eq('id', id).eq('group_id', groupId)
-    if (error) { alert('删除失败：' + error.message); return }
+    if (error) { alert('Delete failed: ' + error.message); return }
     closeDetailRem(); await loadReminders()
   }
 
@@ -522,7 +531,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
     setPersonalLoading(true); setPersonalQueried(true)
     const startDay = personalMode === 'range' ? personalRangeStart : personalDate
     const endDay   = personalMode === 'range' ? personalRangeEnd   : personalDate
-    if (endDay < startDay) { alert('结束日期不能早于开始日期'); setPersonalLoading(false); setPersonalQueried(false); return }
+    if (endDay < startDay) { alert('End date cannot be before start date'); setPersonalLoading(false); setPersonalQueried(false); return }
     const s = `${startDay}T00:00:00.000Z`, e = `${endDay}T23:59:59.999Z`
     const [{ data: recs }, { data: logs }, { data: tdos }] = await Promise.all([
       supabase.from('work_records')
@@ -557,7 +566,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
     setGroupLoading(true); setGroupQueried(true)
     const startDay = groupMode === 'range' ? groupRangeStart : groupDate
     const endDay   = groupMode === 'range' ? groupRangeEnd   : groupDate
-    if (endDay < startDay) { alert('结束日期不能早于开始日期'); setGroupLoading(false); setGroupQueried(false); return }
+    if (endDay < startDay) { alert('End date cannot be before start date'); setGroupLoading(false); setGroupQueried(false); return }
     const s = `${startDay}T00:00:00.000Z`, e = `${endDay}T23:59:59.999Z`
     const [{ data: recs }, { data: logs }, { data: tdos }] = await Promise.all([
       supabase.from('work_records')
@@ -633,7 +642,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         <button type="button" onClick={() => onSet('')}
           className={`text-xs px-2 py-1 rounded border transition-colors
             ${current === '' ? 'border-teal-500 bg-teal-50 text-teal-700 font-medium' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-          不指定
+          Unassigned
         </button>
         {members.map(m => (
           <button key={m.id} type="button" onClick={() => onSet(m.name)}
@@ -658,23 +667,23 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
       <>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">开始日期 <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Start date <span className="text-red-500">*</span></label>
             <input type="date" value={startDate}
               onChange={e => { onStartDate(e.target.value); if (endDate < e.target.value) onEndDate(e.target.value) }}
               className="input-field" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">结束日期 <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">End date <span className="text-red-500">*</span></label>
             <input type="date" value={endDate} min={startDate} onChange={e => onEndDate(e.target.value)} className="input-field" />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">开始时间</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Start time</label>
             <input type="time" value={startTime} onChange={e => onStartTime(e.target.value)} className="input-field" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">结束时间</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">End time</label>
             <input type="time" value={endTime} onChange={e => onEndTime(e.target.value)} className="input-field" />
           </div>
         </div>
@@ -695,6 +704,9 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
     return (
       <button onClick={() => openDetailRem(r)}
         className={`w-full text-left flex items-start gap-2 px-2 py-2 rounded-lg border transition-all ${cls}`}>
+        {variant === 'upcoming' && (
+          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${reminderUrgencyDot(primDate, today)}`} />
+        )}
         <span className={`text-xs font-bold mt-0.5 flex-shrink-0 min-w-9
           ${variant === 'upcoming' && isToday ? 'text-amber-600' : variant === 'upcoming' ? 'text-teal-600' : 'text-gray-400'}`}>
           {dateLabel}
@@ -721,9 +733,9 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                 {fmtTime(r.start_time)}{r.end_time ? `–${fmtTime(r.end_time)}` : ''}
               </span>
             )}
-            {variant === 'past'    && <span className="text-[10px] text-gray-400">已过期</span>}
+            {variant === 'past'    && <span className="text-[10px] text-gray-400">Past</span>}
             {variant === 'deleted' && r.deleted_by_name && (
-              <span className="text-[10px] text-red-400">已删除 · {r.deleted_by_name}</span>
+              <span className="text-[10px] text-red-400">Deleted · {r.deleted_by_name}</span>
             )}
           </div>
         </div>
@@ -751,8 +763,8 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         {/* Navigation */}
         <nav className="px-3 py-3 space-y-1 border-b border-gray-200 flex-shrink-0">
           {[
-            { href: `/${subdomain}/projects`, label: '案件概览', icon: '📋' },
-            ...(isAdmin ? [{ href: `/${subdomain}/admin`, label: '管理后台', icon: '⚙️' }] : []),
+            { href: `/${subdomain}/projects`, label: 'Matters', icon: '📋' },
+            ...(isAdmin ? [{ href: `/${subdomain}/admin`, label: 'Admin', icon: '⚙️' }] : []),
           ].map(item => (
             <button key={item.href} onClick={() => router.push(item.href)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors duration-150 text-left
@@ -765,41 +777,41 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
           <button
             onClick={() => { setShowPersonalStats(true); setPersonalRecords([]); setPersonalTimeLogs([]); setPersonalTodos([]); setPersonalQueried(false) }}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-150 text-left">
-            <span className="text-base">📊</span><span>个人工作统计</span>
+            <span className="text-base">📊</span><span>My Stats</span>
           </button>
 
           {isAdmin && (
             <button
               onClick={() => { setShowGroupStats(true); setGroupRecords([]); setGroupTimeLogs([]); setGroupTodos([]); setGroupQueried(false) }}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-150 text-left">
-              <span className="text-base">📊</span><span>团队工作统计</span>
+              <span className="text-base">📊</span><span>Team Stats</span>
             </button>
           )}
 
-          {/* Switch group button — only if user belongs to multiple */}
+          {/* Switch team button — only if user belongs to multiple */}
           {myGroups.length > 1 && (
             <button
               onClick={() => setShowGroupPicker(true)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-150 text-left">
-              <span className="text-base">🔀</span><span>切换团队</span>
+              <span className="text-base">🔀</span><span>Switch team</span>
             </button>
           )}
         </nav>
 
-        {/* 日程安排 */}
+        {/* Schedule */}
         <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex items-center justify-between px-3 pt-3 pb-2 flex-shrink-0">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">日程安排</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Schedule</span>
             <div className="flex items-center gap-1.5">
               {upcoming.length > 0 && (
                 <button onClick={() => setShowAllRem(true)}
                   className="text-xs text-gray-500 hover:text-teal-600 px-2 py-0.5 rounded border border-gray-300 hover:border-teal-400 transition-colors">
-                  查看全部
+                  View all
                 </button>
               )}
               <button onClick={() => setShowAddRem(true)}
                 className="text-xs text-gray-500 hover:text-teal-600 px-2 py-0.5 rounded border border-gray-300 hover:border-teal-400 transition-colors">
-                + 添加
+                + Add
               </button>
             </div>
           </div>
@@ -809,20 +821,20 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
             {hasMoreUpcoming && (
               <button onClick={() => setShowAllUpcoming(true)}
                 className="w-full py-1.5 text-xs text-gray-500 hover:text-teal-600 border border-dashed border-gray-300 hover:border-teal-400 rounded-lg transition-colors">
-                查看更多（还有 {upcoming.length - MAX_UPCOMING} 条）
+                Show more ({upcoming.length - MAX_UPCOMING} more)
               </button>
             )}
             {showAllUpcoming && upcoming.length > MAX_UPCOMING && (
               <button onClick={() => setShowAllUpcoming(false)}
                 className="w-full py-1.5 text-xs text-gray-400 hover:text-gray-600 border border-dashed border-gray-200 rounded-lg transition-colors">
-                收起
+                Collapse
               </button>
             )}
             {past.length > 0 && (
               <>
                 <div className="flex items-center gap-2 pt-2 pb-1">
                   <div className="flex-1 h-px bg-gray-200" />
-                  <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">已过期 {past.length}</span>
+                  <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">Past {past.length}</span>
                   <div className="flex-1 h-px bg-gray-200" />
                 </div>
                 {past.map((r, i) => <ReminderRow key={r.id} r={r} index={i} variant="past" />)}
@@ -832,13 +844,13 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
               <>
                 <div className="flex items-center gap-2 pt-2 pb-1">
                   <div className="flex-1 h-px bg-gray-200" />
-                  <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">已删除 {deletedRems.length}</span>
+                  <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">Deleted {deletedRems.length}</span>
                   <div className="flex-1 h-px bg-gray-200" />
                 </div>
                 {deletedRems.map((r, i) => <ReminderRow key={r.id} r={r} index={i} variant="deleted" />)}
               </>
             )}
-            {displayReminders.length === 0 && <p className="text-xs text-gray-400 text-center py-4">暂无日程</p>}
+            {displayReminders.length === 0 && <p className="text-xs text-gray-400 text-center py-4">No events</p>}
           </div>
         </div>
 
@@ -847,14 +859,14 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
           <div className="px-3 py-2 mb-1">
             <div className="text-sm font-medium text-gray-900 truncate">{profile?.name || 'User'}</div>
             <div className="text-xs text-gray-400 mt-0.5">
-              {profile?.role === 'first_admin' ? '一级管理员'
-                : profile?.role === 'second_admin' ? '二级管理员'
-                : '成员'}
+              {profile?.role === 'first_admin' ? 'Primary Admin'
+                : profile?.role === 'second_admin' ? 'Secondary Admin'
+                : 'Member'}
             </div>
           </div>
           <button onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-150">
-            <span>🚪</span><span>退出登录</span>
+            <span>🚪</span><span>Sign out</span>
           </button>
         </div>
       </div>
@@ -864,7 +876,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-gray-900">切换团队</h3>
+              <h3 className="text-base font-semibold text-gray-900">Switch team</h3>
               <button onClick={() => setShowGroupPicker(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
             <div className="space-y-2">
@@ -875,7 +887,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                       ? 'border-teal-500 bg-teal-50 text-teal-700 font-semibold'
                       : 'border-gray-200 hover:border-teal-400 text-gray-800 hover:bg-teal-50'}`}>
                   {g.name}
-                  {g.id === groupId && <span className="ml-2 text-xs font-normal text-teal-500">当前</span>}
+                  {g.id === groupId && <span className="ml-2 text-xs font-normal text-teal-500">Current</span>}
                 </button>
               ))}
             </div>
@@ -888,12 +900,12 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-base font-semibold text-gray-900">添加日程</h3>
+              <h3 className="text-base font-semibold text-gray-900">Add event</h3>
               <button onClick={() => { setShowAddRem(false); resetAddForm() }} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">类型 <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type <span className="text-red-500">*</span></label>
                 <TypeGrid current={remType} onSet={setRemType} />
               </div>
               <DateTimeFields
@@ -903,21 +915,21 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                 onStartTime={setRemStartTime} onEndTime={setRemEndTime}
               />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">指定成员</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                 <MemberSelector current={remAssigned} onSet={setRemAssigned} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">内容 <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes <span className="text-red-500">*</span></label>
                 <textarea value={remContent} onChange={e => setRemContent(e.target.value)}
-                  placeholder="日程内容…" rows={3} className="input-field resize-none" autoFocus />
+                  placeholder="Event details…" rows={3} className="input-field resize-none" autoFocus />
               </div>
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-gray-200 flex-shrink-0">
               <button onClick={() => { setShowAddRem(false); resetAddForm() }}
-                className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">取消</button>
+                className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
               <button onClick={saveReminder} disabled={remSaving}
                 className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg disabled:bg-gray-200 disabled:text-gray-400 transition-colors">
-                {remSaving ? '保存中…' : '保存'}
+                {remSaving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
@@ -930,7 +942,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
               <h3 className="text-base font-semibold text-gray-900">
-                {detailMode === 'edit' ? '修改日程' : '日程详情'}
+                {detailMode === 'edit' ? 'Edit event' : 'Event details'}
               </h3>
               <button onClick={closeDetailRem} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
@@ -940,12 +952,12 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                 <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
                   {selectedRem.deleted ? (
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-100 rounded-lg">
-                      <span className="text-xs text-red-500 font-semibold">已删除</span>
-                      {selectedRem.deleted_by_name && <span className="text-xs text-red-400">· 操作人：{selectedRem.deleted_by_name}</span>}
+                      <span className="text-xs text-red-500 font-semibold">Deleted</span>
+                      {selectedRem.deleted_by_name && <span className="text-xs text-red-400">· By: {selectedRem.deleted_by_name}</span>}
                     </div>
                   ) : remEndDate(selectedRem) < todayStr ? (
                     <div className="px-3 py-1.5 bg-gray-100 rounded-lg">
-                      <span className="text-xs text-gray-500 font-semibold">已过期</span>
+                      <span className="text-xs text-gray-500 font-semibold">Past</span>
                     </div>
                   ) : null}
 
@@ -981,22 +993,22 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
 
                 <div className="flex gap-2 px-6 py-4 border-t border-gray-200 flex-shrink-0 flex-wrap">
                   <button onClick={closeDetailRem}
-                    className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">关闭</button>
+                    className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Close</button>
                   {!selectedRem.deleted && (
                     <button onClick={() => startEditRem(selectedRem)}
-                      className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">修改</button>
+                      className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">Edit</button>
                   )}
                   {!selectedRem.deleted && (
                     <button onClick={() => softDeleteReminder(selectedRem.id)}
-                      className="flex-1 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors">删除</button>
+                      className="flex-1 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors">Delete</button>
                   )}
                   {selectedRem.deleted && (currentUserId === selectedRem.deleted_by || isAdmin) && (
                     <button onClick={() => restoreReminder(selectedRem.id)}
-                      className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">恢复</button>
+                      className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">Restore</button>
                   )}
                   {selectedRem.deleted && isAdmin && (
                     <button onClick={() => hardDeleteReminder(selectedRem.id)}
-                      className="flex-1 py-2 text-sm font-medium text-white bg-red-700 hover:bg-red-800 rounded-lg transition-colors">永久删除</button>
+                      className="flex-1 py-2 text-sm font-medium text-white bg-red-700 hover:bg-red-800 rounded-lg transition-colors">Delete permanently</button>
                   )}
                 </div>
               </>
@@ -1004,7 +1016,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
               <>
                 <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">类型 <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Type <span className="text-red-500">*</span></label>
                     <TypeGrid current={editType} onSet={setEditType} />
                   </div>
                   <DateTimeFields
@@ -1014,21 +1026,21 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                     onStartTime={setEditStartTime} onEndTime={setEditEndTime}
                   />
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">指定成员</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
                     <MemberSelector current={editAssigned} onSet={setEditAssigned} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">内容 <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Notes <span className="text-red-500">*</span></label>
                     <textarea value={editContent} onChange={e => setEditContent(e.target.value)}
                       rows={3} className="input-field resize-none" />
                   </div>
                 </div>
                 <div className="flex gap-3 px-6 py-4 border-t border-gray-200 flex-shrink-0">
                   <button onClick={() => setDetailMode('view')}
-                    className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">取消</button>
+                    className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
                   <button onClick={saveEditRem} disabled={editSaving}
                     className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg disabled:bg-gray-200 disabled:text-gray-400 transition-colors">
-                    {editSaving ? '保存中…' : '保存'}
+                    {editSaving ? 'Saving…' : 'Save'}
                   </button>
                 </div>
               </>
@@ -1043,7 +1055,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
               <div>
-                <h3 className="text-base font-semibold text-gray-900">个人工作统计</h3>
+                <h3 className="text-base font-semibold text-gray-900">My Work Stats</h3>
                 <p className="text-xs text-gray-400 mt-0.5">{profile?.name}</p>
               </div>
               <button onClick={() => setShowPersonalStats(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
@@ -1055,14 +1067,14 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                     ${personalMode === 'single'
                       ? 'bg-teal-600 text-white border-teal-600'
                       : 'text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
-                  单日
+                  Single day
                 </button>
                 <button onClick={() => { setPersonalMode('range'); setPersonalQueried(false) }}
                   className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
                     ${personalMode === 'range'
                       ? 'bg-rose-400 text-white border-rose-400'
                       : 'bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-100'}`}>
-                  区间
+                  Range
                 </button>
               </div>
               <div className="flex items-center gap-3">
@@ -1075,7 +1087,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                     <input type="date" value={personalRangeStart}
                       onChange={e => { setPersonalRangeStart(e.target.value); setPersonalQueried(false) }}
                       className="input-field w-40" />
-                    <span className="text-sm text-gray-400">至</span>
+                    <span className="text-sm text-gray-400">to</span>
                     <input type="date" value={personalRangeEnd} min={personalRangeStart}
                       onChange={e => { setPersonalRangeEnd(e.target.value); setPersonalQueried(false) }}
                       className="input-field w-40" />
@@ -1086,10 +1098,10 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                     ${personalMode === 'range'
                       ? 'bg-rose-400 hover:bg-rose-500'
                       : 'bg-teal-600 hover:bg-teal-700'}`}>
-                  {personalLoading ? '查询中…' : '确认'}
+                  {personalLoading ? 'Loading…' : 'Confirm'}
                 </button>
                 {personalQueried && !personalLoading && (
-                  <span className="text-xs text-gray-400">共 {personalRecords.length + personalTimeLogs.length + personalTodos.length} 条</span>
+                  <span className="text-xs text-gray-400">{personalRecords.length + personalTimeLogs.length + personalTodos.length} total</span>
                 )}
               </div>
             </div>
@@ -1106,7 +1118,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-base font-semibold text-gray-900">全部待办日程 <span className="text-gray-400 font-normal text-sm">({upcoming.length})</span></h3>
+              <h3 className="text-base font-semibold text-gray-900">All events <span className="text-gray-400 font-normal text-sm">({upcoming.length})</span></h3>
               <button onClick={() => setShowAllRem(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
@@ -1121,7 +1133,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-base font-semibold text-gray-900">团队工作统计</h3>
+              <h3 className="text-base font-semibold text-gray-900">Team Stats</h3>
               <button onClick={() => setShowGroupStats(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
             <div className="px-6 py-3 border-b border-gray-100 flex-shrink-0 space-y-3">
@@ -1131,14 +1143,14 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                     ${groupMode === 'single'
                       ? 'bg-teal-600 text-white border-teal-600'
                       : 'text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
-                  单日
+                  Single day
                 </button>
                 <button onClick={() => { setGroupMode('range'); setGroupQueried(false) }}
                   className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
                     ${groupMode === 'range'
                       ? 'bg-rose-400 text-white border-rose-400'
                       : 'bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-100'}`}>
-                  区间
+                  Range
                 </button>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
@@ -1151,7 +1163,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                     <input type="date" value={groupRangeStart}
                       onChange={e => { setGroupRangeStart(e.target.value); setGroupQueried(false) }}
                       className="input-field w-40" />
-                    <span className="text-sm text-gray-400">至</span>
+                    <span className="text-sm text-gray-400">to</span>
                     <input type="date" value={groupRangeEnd} min={groupRangeStart}
                       onChange={e => { setGroupRangeEnd(e.target.value); setGroupQueried(false) }}
                       className="input-field w-40" />
@@ -1162,10 +1174,10 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                     ${groupMode === 'range'
                       ? 'bg-rose-400 hover:bg-rose-500'
                       : 'bg-teal-600 hover:bg-teal-700'}`}>
-                  {groupLoading ? '查询中…' : '确认'}
+                  {groupLoading ? 'Loading…' : 'Confirm'}
                 </button>
                 {groupQueried && !groupLoading && (
-                  <span className="text-xs text-gray-400">共 {groupRecords.length + groupTimeLogs.length + groupTodos.length} 条</span>
+                  <span className="text-xs text-gray-400">{groupRecords.length + groupTimeLogs.length + groupTodos.length} total</span>
                 )}
               </div>
             </div>
