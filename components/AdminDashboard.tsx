@@ -61,8 +61,28 @@ const TITLE_COLORS: Record<string, string> = {
   staff:           'bg-gray-100 text-gray-600',
 }
 
+const INTAKE_STATUS_LABELS: Record<string, string> = {
+  pending:   'Pending',
+  reviewed:  'Reviewed',
+  converted: 'Converted',
+  dismissed: 'Dismissed',
+}
+
+const INTAKE_STATUS_COLORS: Record<string, string> = {
+  pending:   'bg-amber-100 text-amber-700',
+  reviewed:  'bg-blue-100 text-blue-700',
+  converted: 'bg-teal-100 text-teal-700',
+  dismissed: 'bg-gray-100 text-gray-500',
+}
+
+const MATTER_TYPE_LABELS_BRIEF: Record<string, string> = {
+  criminal: 'Criminal', corporate: 'Corporate', family: 'Family',
+  ip: 'IP', real_estate: 'Real Estate', labor: 'Labor',
+  administrative: 'Admin', civil: 'Civil', other: 'Other',
+}
+
 export default function AdminDashboard({
-  profile, projects, members, groupId, group, subdomain, clients: initialClients,
+  profile, projects, members, groupId, group, subdomain, clients: initialClients, intakes: initialIntakes,
 }: {
   profile: any
   projects: any[]
@@ -71,6 +91,7 @@ export default function AdminDashboard({
   group: { id: string; name: string; description: string }
   subdomain: string
   clients: any[]
+  intakes: any[]
 }) {
   const router = useRouter()
   const supabase = createClient()
@@ -78,7 +99,11 @@ export default function AdminDashboard({
   const isFirstAdmin = profile?.role === 'first_admin'
   const isAdmin = ['first_admin', 'second_admin'].includes(profile?.role)
 
-  const [tab, setTab] = useState<'projects' | 'members' | 'clients'>('projects')
+  const [tab, setTab] = useState<'projects' | 'members' | 'clients' | 'intake'>('projects')
+
+  // ── Intakes (Feature 19) ──────────────────────────────────
+  const [intakes,       setIntakes]       = useState<any[]>(initialIntakes)
+  const [intakeSaving,  setIntakeSaving]  = useState<string | null>(null)
 
   // ── E2E encryption (NaCl) ───────────────────────────────────
   const { keyPair, ready: e2eReady } = useE2E(profile?.id || null)
@@ -288,6 +313,13 @@ export default function AdminDashboard({
     setResetSaving(false)
   }
 
+  async function updateIntakeStatus(id: string, status: string) {
+    setIntakeSaving(id)
+    const { error } = await supabase.from('intake_submissions').update({ status }).eq('id', id)
+    if (!error) setIntakes(prev => prev.map(i => i.id === id ? { ...i, status } : i))
+    setIntakeSaving(null)
+  }
+
   async function removeMember(memberId: string, memberName: string) {
     if (!confirm(`Remove "${memberName}" from the team? This cannot be undone.`)) return
     setRemoveSaving(memberId); setRemoveMsg('')
@@ -393,13 +425,17 @@ export default function AdminDashboard({
         </div>
 
         <div className="flex border-b border-gray-200 bg-white px-6 flex-shrink-0">
-          {(['projects', 'members', 'clients'] as const).map(key => (
-            <button key={key} onClick={() => setTab(key)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors
-                ${tab === key ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              {key === 'projects' ? 'Matters' : key === 'members' ? 'Members' : 'Clients'}
-            </button>
-          ))}
+          {(['projects', 'members', 'clients', 'intake'] as const).map(key => {
+            const label = key === 'projects' ? 'Matters' : key === 'members' ? 'Members'
+              : key === 'clients' ? 'Clients' : `Intake${intakes.filter(i => i.status === 'pending').length > 0 ? ` (${intakes.filter(i => i.status === 'pending').length})` : ''}`
+            return (
+              <button key={key} onClick={() => setTab(key)}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors
+                  ${tab === key ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                {label}
+              </button>
+            )
+          })}
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
@@ -743,6 +779,76 @@ export default function AdminDashboard({
                   </table>
                 </div>
               </section>
+            </div>
+          )}
+
+          {/* ──────── Intake (Feature 19) ──────── */}
+          {tab === 'intake' && (
+            <div className="max-w-3xl space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">Client Intake Submissions</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Intake URL: <span className="font-mono text-teal-700">teaming365.com/intake/{subdomain}</span>
+                  </p>
+                </div>
+                <span className="text-xs text-gray-400">{intakes.length} total</span>
+              </div>
+
+              {intakes.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                  <p className="text-sm text-gray-400">No intake submissions yet.</p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Share <span className="font-mono text-teal-600">teaming365.com/intake/{subdomain}</span> with prospective clients.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {intakes.map(i => (
+                    <div key={i.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold text-gray-900">{i.name}</span>
+                            {i.matter_type && (
+                              <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
+                                {MATTER_TYPE_LABELS_BRIEF[i.matter_type] || i.matter_type}
+                              </span>
+                            )}
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${INTAKE_STATUS_COLORS[i.status] || 'bg-gray-100 text-gray-500'}`}>
+                              {INTAKE_STATUS_LABELS[i.status] || i.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            {i.email && <span className="text-xs text-gray-500">✉️ {i.email}</span>}
+                            {i.phone && <span className="text-xs text-gray-500">📞 {i.phone}</span>}
+                            <span className="text-xs text-gray-400">
+                              {new Date(i.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                          </div>
+                          {i.description && (
+                            <p className="text-xs text-gray-600 mt-2 leading-relaxed line-clamp-3">{i.description}</p>
+                          )}
+                        </div>
+                        {isAdmin && (
+                          <div className="flex-shrink-0">
+                            <select
+                              value={i.status}
+                              onChange={e => updateIntakeStatus(i.id, e.target.value)}
+                              disabled={intakeSaving === i.id}
+                              className="text-xs border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-teal-500">
+                              <option value="pending">Pending</option>
+                              <option value="reviewed">Reviewed</option>
+                              <option value="converted">Converted</option>
+                              <option value="dismissed">Dismissed</option>
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
