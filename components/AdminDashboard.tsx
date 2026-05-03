@@ -15,16 +15,16 @@ import {
 } from '@/lib/e2e'
 
 const STATUS_LABELS: Record<string, string> = {
-  active: '进行中',
-  delayed: '已取消',
-  completed: '已完成',
-  cancelled: '未签约',
+  active:    'Active',
+  delayed:   'Cancelled',
+  completed: 'Closed',
+  cancelled: 'Declined',
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  first_admin:  '一级管理员',
-  second_admin: '二级管理员',
-  member:       '成员',
+  first_admin:  'Primary Admin',
+  second_admin: 'Secondary Admin',
+  member:       'Member',
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -90,7 +90,7 @@ export default function AdminDashboard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyPair, e2eReady, isFirstAdmin])
 
-  // ── 新建项目 ────────────────────────────────────────────
+  // ── New matter ────────────────────────────────────────────
   const [projName,       setProjName]       = useState('')
   const [projClient,     setProjClient]     = useState('')
   const [projDesc,       setProjDesc]       = useState('')
@@ -103,7 +103,7 @@ export default function AdminDashboard({
   const [projSaving,    setProjSaving]    = useState(false)
   const [projMsg,       setProjMsg]       = useState('')
 
-  // ── 新建成员 ────────────────────────────────────────────
+  // ── New member ────────────────────────────────────────────
   const [memName,     setMemName]     = useState('')
   const [memEmail,    setMemEmail]    = useState('')
   const [memPassword, setMemPassword] = useState('')
@@ -112,20 +112,20 @@ export default function AdminDashboard({
   const [memSaving,   setMemSaving]   = useState(false)
   const [memMsg,      setMemMsg]      = useState('')
 
-  // ── 添加已注册用户 ──────────────────────────────────────
+  // ── Add existing user ─────────────────────────────────────
   const [addEmail,   setAddEmail]   = useState('')
   const [addRole,    setAddRole]    = useState('member')
   const [addSaving,  setAddSaving]  = useState(false)
   const [addMsg,     setAddMsg]     = useState('')
 
-  // ── 重置密码 ────────────────────────────────────────────
+  // ── Reset password ────────────────────────────────────────
   const [resetId,       setResetId]       = useState('')
   const [resetPwd,      setResetPwd]      = useState('')
   const [showResetPwd,  setShowResetPwd]  = useState(false)
   const [resetSaving,   setResetSaving]   = useState(false)
   const [resetMsg,      setResetMsg]      = useState('')
 
-  // ── 移除成员 ────────────────────────────────────────────
+  // ── Remove member ─────────────────────────────────────────
   const [removeSaving, setRemoveSaving] = useState<string | null>(null)
   const [removeMsg,    setRemoveMsg]    = useState('')
 
@@ -139,7 +139,7 @@ export default function AdminDashboard({
   }
 
   async function createProject() {
-    if (!projName.trim() || !projClient.trim()) { setProjMsg('❌ 案件名称和委托方为必填'); return }
+    if (!projName.trim() || !projClient.trim()) { setProjMsg('❌ Matter name and client are required'); return }
     setProjSaving(true); setProjMsg('')
     const parties = collabParties.map(p => p.trim()).filter(Boolean)
     const { error } = await supabase.from('projects').insert({
@@ -156,9 +156,9 @@ export default function AdminDashboard({
       created_by:            profile.id,
     })
     if (error) {
-      setProjMsg(`❌ 创建失败：${error.message}`)
+      setProjMsg(`❌ Creation failed: ${error.message}`)
     } else {
-      setProjMsg('✅ 案件已创建')
+      setProjMsg('✅ Matter created')
       setProjName(''); setProjClient(''); setProjDesc('')
       setProjStatus('active'); setProjMatterType(''); setProjAgreement('')
       setProjCurrency('CNY'); setProjAmount(''); setCollabParties([''])
@@ -168,7 +168,7 @@ export default function AdminDashboard({
   }
 
   async function addExistingMember() {
-    if (!addEmail.trim()) { setAddMsg('❌ 请输入邮箱'); return }
+    if (!addEmail.trim()) { setAddMsg('❌ Please enter an email'); return }
     setAddSaving(true); setAddMsg('')
     const res = await fetch('/api/admin/add-existing-member', {
       method: 'POST',
@@ -177,13 +177,13 @@ export default function AdminDashboard({
     })
     const json = await res.json()
     if (!res.ok) {
-      setAddMsg(`❌ ${json.error || '操作失败'}`)
+      setAddMsg(`❌ ${json.error || 'Operation failed'}`)
     } else {
       // Try to add to E2E group key
       if (keyPair && isFirstAdmin && json.userId) {
         addMemberToGroup(profile.id as string, groupId, keyPair, json.userId).catch(() => {})
       }
-      setAddMsg(`✅ 已将"${json.name}"添加到团队`)
+      setAddMsg(`✅ Added "${json.name}" to the team`)
       setAddEmail('')
       setTimeout(() => router.refresh(), 800)
     }
@@ -192,7 +192,7 @@ export default function AdminDashboard({
 
   async function createMember() {
     if (!memName.trim() || !memEmail.trim() || !memPassword) {
-      setMemMsg('❌ 姓名、邮箱、密码均为必填'); return
+      setMemMsg('❌ Name, email and password are required'); return
     }
     setMemSaving(true); setMemMsg('')
     const res = await fetch('/api/admin/create-member', {
@@ -202,14 +202,14 @@ export default function AdminDashboard({
     })
     const json = await res.json()
     if (!res.ok) {
-      setMemMsg(`❌ ${json.error || '创建失败'}`)
+      setMemMsg(`❌ ${json.error || 'Creation failed'}`)
     } else {
       // Try to add the new member to the E2E group key immediately.
       // No-ops if the member hasn't registered their key yet (they will on first login).
       if (keyPair && isFirstAdmin && json.newUserId) {
         addMemberToGroup(profile.id as string, groupId, keyPair, json.newUserId).catch(() => {})
       }
-      setMemMsg('✅ 成员已创建')
+      setMemMsg('✅ Member created')
       setMemName(''); setMemEmail(''); setMemPassword(''); setMemRole('member')
       setTimeout(() => router.refresh(), 800)
     }
@@ -217,8 +217,8 @@ export default function AdminDashboard({
   }
 
   async function resetPassword() {
-    if (!resetId || !resetPwd) { setResetMsg('❌ 请选择成员并填写新密码'); return }
-    if (resetPwd.length < 6) { setResetMsg('❌ 密码至少 6 位'); return }
+    if (!resetId || !resetPwd) { setResetMsg('❌ Select a member and enter a new password'); return }
+    if (resetPwd.length < 6) { setResetMsg('❌ Min 6 characters'); return }
     setResetSaving(true); setResetMsg('')
     const res = await fetch('/api/admin/reset-password', {
       method: 'POST',
@@ -226,13 +226,13 @@ export default function AdminDashboard({
       body: JSON.stringify({ callerUserId: profile.id, memberId: resetId, newPassword: resetPwd, groupId }),
     })
     const json = await res.json()
-    if (!res.ok) { setResetMsg(`❌ ${json.error || '操作失败'}`) }
-    else { setResetMsg('✅ 密码已重置'); setResetId(''); setResetPwd('') }
+    if (!res.ok) { setResetMsg(`❌ ${json.error || 'Operation failed'}`) }
+    else { setResetMsg('✅ Password reset'); setResetId(''); setResetPwd('') }
     setResetSaving(false)
   }
 
   async function removeMember(memberId: string, memberName: string) {
-    if (!confirm(`确认将"${memberName}"从团队中移除？此操作不可恢复。`)) return
+    if (!confirm(`Remove "${memberName}" from the team? This cannot be undone.`)) return
     setRemoveSaving(memberId); setRemoveMsg('')
     const res = await fetch('/api/admin/remove-member', {
       method: 'POST',
@@ -241,7 +241,7 @@ export default function AdminDashboard({
     })
     const json = await res.json()
     if (!res.ok) {
-      setRemoveMsg(`❌ ${json.error || '操作失败'}`)
+      setRemoveMsg(`❌ ${json.error || 'Operation failed'}`)
     } else {
       // Remove from E2E group key table in background
       if (isFirstAdmin) {
@@ -258,7 +258,7 @@ export default function AdminDashboard({
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className="flex items-center px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-          <h1 className="text-lg font-semibold text-gray-900">管理后台</h1>
+          <h1 className="text-lg font-semibold text-gray-900">Admin</h1>
           <span className="ml-3 text-sm text-gray-400">· {group.name}</span>
           <span className={`ml-3 text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[profile?.role] || ''}`}>
             {ROLE_LABELS[profile?.role] || profile?.role}
@@ -270,225 +270,225 @@ export default function AdminDashboard({
             <button key={key} onClick={() => setTab(key)}
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors
                 ${tab === key ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-              {key === 'projects' ? '案件管理' : '成员管理'}
+              {key === 'projects' ? 'Matters' : 'Members'}
             </button>
           ))}
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
 
-          {/* ──────── 项目管理 ──────── */}
+          {/* ──────── Matters ──────── */}
           {tab === 'projects' && (
             <div className="max-w-3xl space-y-6">
               <section className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">新建案件</h2>
+                <h2 className="text-base font-semibold text-gray-900 mb-4">Create matter</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-sm text-gray-700 mb-1">案件名称 *</label>
+                    <label className="block text-sm text-gray-700 mb-1">Matter name *</label>
                     <input value={projName} onChange={e => setProjName(e.target.value)}
-                      placeholder="请输入案件名称" className="input-field" />
+                      placeholder="Matter name" className="input-field" />
                   </div>
                   <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-sm text-gray-700 mb-1">委托方 *</label>
+                    <label className="block text-sm text-gray-700 mb-1">Client *</label>
                     <input value={projClient} onChange={e => setProjClient(e.target.value)}
-                      placeholder="委托方名称" className="input-field" />
+                      placeholder="Client name" className="input-field" />
                   </div>
                   <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-sm text-gray-700 mb-1">案件类型</label>
+                    <label className="block text-sm text-gray-700 mb-1">Matter type</label>
                     <select value={projMatterType} onChange={e => setProjMatterType(e.target.value)} className="input-field">
-                      <option value="">请选择（可选）</option>
-                      <option value="criminal">刑事</option>
-                      <option value="corporate">公司商事</option>
-                      <option value="family">婚姻家事</option>
-                      <option value="ip">知识产权</option>
-                      <option value="real_estate">房产</option>
-                      <option value="labor">劳动</option>
-                      <option value="administrative">行政</option>
-                      <option value="civil">民事</option>
-                      <option value="other">其他</option>
+                      <option value="">Select (optional)</option>
+                      <option value="criminal">Criminal</option>
+                      <option value="corporate">Corporate</option>
+                      <option value="family">Family</option>
+                      <option value="ip">IP</option>
+                      <option value="real_estate">Real Estate</option>
+                      <option value="labor">Labor</option>
+                      <option value="administrative">Administrative</option>
+                      <option value="civil">Civil</option>
+                      <option value="other">Other</option>
                     </select>
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-sm text-gray-700 mb-1">案件描述</label>
+                    <label className="block text-sm text-gray-700 mb-1">Notes</label>
                     <textarea value={projDesc} onChange={e => setProjDesc(e.target.value)}
-                      placeholder="简要描述（可选）" rows={2} className="input-field resize-none" />
+                      placeholder="Brief description (optional)" rows={2} className="input-field resize-none" />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">初始状态</label>
+                    <label className="block text-sm text-gray-700 mb-1">Status</label>
                     <select value={projStatus} onChange={e => setProjStatus(e.target.value)} className="input-field">
-                      <option value="active">进行中</option>
-                      <option value="pending">待处理</option>
-                      <option value="cancelled">未签约</option>
+                      <option value="active">Active</option>
+                      <option value="pending">Pending</option>
+                      <option value="cancelled">Declined</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">签约方</label>
+                    <label className="block text-sm text-gray-700 mb-1">Counterparty</label>
                     <input value={projAgreement} onChange={e => setProjAgreement(e.target.value)}
-                      placeholder="签约方（可选）" className="input-field" />
+                      placeholder="Counterparty (optional)" className="input-field" />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">服务费币种</label>
+                    <label className="block text-sm text-gray-700 mb-1">Fee currency</label>
                     <select value={projCurrency} onChange={e => setProjCurrency(e.target.value)} className="input-field">
-                      <option value="CNY">CNY（人民币）</option>
-                      <option value="KRW">KRW（韩元）</option>
-                      <option value="USD">USD（美元）</option>
+                      <option value="CNY">CNY</option>
+                      <option value="KRW">KRW</option>
+                      <option value="USD">USD</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">服务费金额</label>
+                    <label className="block text-sm text-gray-700 mb-1">Fee amount</label>
                     <input type="number" min="0" step="0.01" value={projAmount}
-                      onChange={e => setProjAmount(e.target.value)} placeholder="可选" className="input-field" />
+                      onChange={e => setProjAmount(e.target.value)} placeholder="Optional" className="input-field" />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-sm text-gray-700 mb-1">协作方</label>
+                    <label className="block text-sm text-gray-700 mb-1">Co-counsel</label>
                     <div className="space-y-2">
                       {collabParties.map((party, i) => (
                         <div key={i} className="flex items-center gap-2">
                           <input value={party} onChange={e => updateCollabParty(i, e.target.value)}
-                            placeholder={`协作方 ${i + 1}`} className="input-field flex-1" />
+                            placeholder={`Co-counsel ${i + 1}`} className="input-field flex-1" />
                           {collabParties.length > 1 && (
                             <button onClick={() => removeCollabParty(i)}
-                              className="text-gray-400 hover:text-red-500 text-lg leading-none px-1" title="移除">×</button>
+                              className="text-gray-400 hover:text-red-500 text-lg leading-none px-1" title="Remove">×</button>
                           )}
                         </div>
                       ))}
                       <button onClick={addCollabParty}
                         className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-800 font-medium">
-                        <span className="text-lg leading-none">+</span> 添加协作方
+                        <span className="text-lg leading-none">+</span> Add co-counsel
                       </button>
                     </div>
                   </div>
                 </div>
                 {projMsg && <p className="mt-3 text-sm">{projMsg}</p>}
                 <button onClick={createProject} disabled={projSaving} className="mt-4 btn-primary">
-                  {projSaving ? '创建中…' : '创建案件'}
+                  {projSaving ? 'Creating…' : 'Create matter'}
                 </button>
               </section>
 
               <section className="bg-white rounded-xl border border-gray-200 p-6">
                 <h2 className="text-base font-semibold text-gray-900 mb-4">
-                  现有案件 <span className="text-gray-400 font-normal text-sm">（{displayProjects.length} 个）</span>
+                  Matters <span className="text-gray-400 font-normal text-sm">({displayProjects.length})</span>
                 </h2>
                 <div className="space-y-2">
                   {displayProjects.map((p: any) => (
                     <div key={p.id} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
                       <div>
                         <div className="text-sm font-bold text-gray-900">{p.name}</div>
-                        <div className="text-xs text-gray-500">委托方：{p.client}</div>
+                        <div className="text-xs text-gray-500">Client: {p.client}</div>
                       </div>
                       <span className={`status-tag st-${p.status}`}>{STATUS_LABELS[p.status]}</span>
                     </div>
                   ))}
-                  {displayProjects.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">暂无案件</p>}
+                  {displayProjects.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">No matters yet</p>}
                 </div>
               </section>
             </div>
           )}
 
-          {/* ──────── 成员管理 ──────── */}
+          {/* ──────── Members ──────── */}
           {tab === 'members' && (
             <div className="max-w-3xl space-y-6">
               <section className="bg-white rounded-xl border border-gray-200 p-6">
-                <h3 className="text-base font-semibold text-gray-900 mb-1">添加已注册用户</h3>
-                <p className="text-xs text-gray-500 mb-4">如果对方已在本平台注册账号，可直接通过邮箱将其加入团队。</p>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Add existing user</h3>
+                <p className="text-xs text-gray-500 mb-4">If they've already registered, add them to your team by email.</p>
                 <div className="flex gap-3">
                   <input type="email" value={addEmail} onChange={e => setAddEmail(e.target.value)}
-                    placeholder="对方的注册邮箱" className="input-field flex-1" />
+                    placeholder="Their registered email" className="input-field flex-1" />
                   {isFirstAdmin && (
                     <select value={addRole} onChange={e => setAddRole(e.target.value)} className="input-field w-36">
-                      <option value="member">成员</option>
-                      <option value="second_admin">二级管理员</option>
+                      <option value="member">Member</option>
+                      <option value="second_admin">Secondary Admin</option>
                     </select>
                   )}
                   <button onClick={addExistingMember} disabled={addSaving} className="btn-primary whitespace-nowrap">
-                    {addSaving ? '添加中…' : '添加'}
+                    {addSaving ? 'Adding…' : 'Add'}
                   </button>
                 </div>
                 {addMsg && <p className="mt-2 text-sm">{addMsg}</p>}
               </section>
 
               <section className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">创建成员</h2>
+                <h2 className="text-base font-semibold text-gray-900 mb-4">Create member</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">姓名 *</label>
+                    <label className="block text-sm text-gray-700 mb-1">Name *</label>
                     <input value={memName} onChange={e => setMemName(e.target.value)}
-                      placeholder="显示名称" className="input-field" />
+                      placeholder="Display name" className="input-field" />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">邮箱 *</label>
+                    <label className="block text-sm text-gray-700 mb-1">Email *</label>
                     <input type="email" value={memEmail} onChange={e => setMemEmail(e.target.value)}
                       placeholder="member@example.com" className="input-field" />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">初始密码 *</label>
+                    <label className="block text-sm text-gray-700 mb-1">Password *</label>
                     <div className="relative">
                       <input type={showMemPwd ? 'text' : 'password'} value={memPassword}
                         onChange={e => setMemPassword(e.target.value)}
-                        placeholder="至少 6 位" className="input-field pr-14" />
+                        placeholder="Min 6 characters" className="input-field pr-14" />
                       <button type="button" onClick={() => setShowMemPwd(v => !v)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-700">
-                        {showMemPwd ? '隐藏' : '显示'}
+                        {showMemPwd ? 'Hide' : 'Show'}
                       </button>
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">角色</label>
+                    <label className="block text-sm text-gray-700 mb-1">Role</label>
                     <select value={memRole} onChange={e => setMemRole(e.target.value)} className="input-field">
-                      <option value="member">成员</option>
-                      {isFirstAdmin && <option value="second_admin">二级管理员</option>}
+                      <option value="member">Member</option>
+                      {isFirstAdmin && <option value="second_admin">Secondary Admin</option>}
                     </select>
                   </div>
                 </div>
                 {memMsg && <p className="mt-3 text-sm">{memMsg}</p>}
                 <button onClick={createMember} disabled={memSaving} className="mt-4 btn-primary">
-                  {memSaving ? '创建中…' : '创建成员'}
+                  {memSaving ? 'Creating…' : 'Create member'}
                 </button>
               </section>
 
               <section className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">重置成员密码</h2>
+                <h2 className="text-base font-semibold text-gray-900 mb-4">Reset member password</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">选择成员</label>
+                    <label className="block text-sm text-gray-700 mb-1">Select member</label>
                     <select value={resetId} onChange={e => setResetId(e.target.value)} className="input-field">
-                      <option value="">— 请选择 —</option>
+                      <option value="">— Select —</option>
                       {members.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-700 mb-1">新密码</label>
+                    <label className="block text-sm text-gray-700 mb-1">New password</label>
                     <div className="relative">
                       <input type={showResetPwd ? 'text' : 'password'} value={resetPwd}
                         onChange={e => setResetPwd(e.target.value)}
-                        placeholder="至少 6 位" className="input-field pr-14" />
+                        placeholder="Min 6 characters" className="input-field pr-14" />
                       <button type="button" onClick={() => setShowResetPwd(v => !v)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-700">
-                        {showResetPwd ? '隐藏' : '显示'}
+                        {showResetPwd ? 'Hide' : 'Show'}
                       </button>
                     </div>
                   </div>
                 </div>
                 {resetMsg && <p className="mt-3 text-sm">{resetMsg}</p>}
                 <button onClick={resetPassword} disabled={resetSaving} className="mt-4 btn-primary">
-                  {resetSaving ? '处理中…' : '重置密码'}
+                  {resetSaving ? 'Processing…' : 'Reset password'}
                 </button>
               </section>
 
               <section className="bg-white rounded-xl border border-gray-200 p-6">
                 <h2 className="text-base font-semibold text-gray-900 mb-4">
-                  成员列表 <span className="text-gray-400 font-normal text-sm">（{members.length} 人）</span>
+                  Members <span className="text-gray-400 font-normal text-sm">({members.length})</span>
                 </h2>
                 {removeMsg && <p className="mb-3 text-sm">{removeMsg}</p>}
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200 text-left">
-                        <th className="pb-2 text-xs font-medium text-gray-500">姓名</th>
-                        <th className="pb-2 text-xs font-medium text-gray-500">邮箱</th>
-                        <th className="pb-2 text-xs font-medium text-gray-500">角色</th>
-                        <th className="pb-2 text-xs font-medium text-gray-500">加入时间</th>
-                        {isFirstAdmin && <th className="pb-2 text-xs font-medium text-gray-500">操作</th>}
+                        <th className="pb-2 text-xs font-medium text-gray-500">Name</th>
+                        <th className="pb-2 text-xs font-medium text-gray-500">Email</th>
+                        <th className="pb-2 text-xs font-medium text-gray-500">Role</th>
+                        <th className="pb-2 text-xs font-medium text-gray-500">Joined</th>
+                        {isFirstAdmin && <th className="pb-2 text-xs font-medium text-gray-500">Actions</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -502,7 +502,7 @@ export default function AdminDashboard({
                             </span>
                           </td>
                           <td className="py-2.5 text-gray-400 text-xs">
-                            {new Date(m.created_at).toLocaleDateString('zh-CN')}
+                            {new Date(m.created_at).toLocaleDateString('en-US')}
                           </td>
                           {isFirstAdmin && (
                             <td className="py-2.5">
@@ -511,7 +511,7 @@ export default function AdminDashboard({
                                   onClick={() => removeMember(m.id, m.name)}
                                   disabled={removeSaving === m.id}
                                   className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded border border-red-200 hover:border-red-400 transition-colors disabled:opacity-50">
-                                  {removeSaving === m.id ? '移除中…' : '移除'}
+                                  {removeSaving === m.id ? 'Removing…' : 'Remove'}
                                 </button>
                               )}
                             </td>

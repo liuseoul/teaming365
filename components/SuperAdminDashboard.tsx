@@ -51,7 +51,7 @@ export default function SuperAdminDashboard({
   async function handleResetPwd() {
     setResetMsg('')
     if (!resetAdminId || !resetPwd) {
-      setResetMsg('❌ 请选择团队并填写新密码')
+      setResetMsg('❌ Select a team and enter a new password')
       return
     }
     setResetSaving(true)
@@ -63,13 +63,13 @@ export default function SuperAdminDashboard({
       })
       const json = await res.json()
       if (!res.ok) {
-        setResetMsg(`❌ ${json.error || '操作失败'}`)
+        setResetMsg(`❌ ${json.error || 'Operation failed'}`)
       } else {
-        setResetMsg('✅ 密码已重置')
+        setResetMsg('✅ Password reset')
         setResetGroupId(''); setResetAdminId(''); setResetPwd(''); setShowResetPwd(false)
       }
     } catch {
-      setResetMsg('❌ 网络错误，请重试')
+      setResetMsg('❌ Network error — please try again')
     } finally {
       setResetSaving(false)
     }
@@ -103,8 +103,8 @@ export default function SuperAdminDashboard({
           <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center text-sm font-bold text-white">Q</div>
           <div>
             <div className="text-sm font-semibold text-gray-900 flex items-center gap-1">
-              团队<span className="font-black bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent" style={{fontVariantNumeric:'oldstyle-nums'}}>365</span>
-              <span className="text-gray-400 font-normal ml-1">· 超级管理员</span>
+              Team<span className="font-black bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent" style={{fontVariantNumeric:'oldstyle-nums'}}>365</span>
+              <span className="text-gray-400 font-normal ml-1">· Super Admin</span>
             </div>
             <div className="text-xs text-gray-400">{profile.name}</div>
           </div>
@@ -112,7 +112,7 @@ export default function SuperAdminDashboard({
         <button
           onClick={handleLogout}
           className="text-sm text-gray-500 hover:text-gray-800 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-          退出登录
+          Sign out
         </button>
       </header>
 
@@ -122,7 +122,7 @@ export default function SuperAdminDashboard({
           <button key={key} onClick={() => setTab(key)}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors
               ${tab === key ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            {key === 'groups' ? '所有团队' : '待分配用户'}
+            {key === 'groups' ? 'All Teams' : 'Pending Users'}
           </button>
         ))}
       </div>
@@ -134,19 +134,19 @@ export default function SuperAdminDashboard({
             {/* ── Group List ──────────────────────────────────────── */}
             <section className="bg-white rounded-xl border border-gray-200 p-6">
               <h2 className="text-base font-semibold text-gray-900 mb-4">
-                所有团队 <span className="text-gray-400 font-normal text-sm">（{groups.length} 个）</span>
+                All Teams <span className="text-gray-400 font-normal text-sm">({groups.length})</span>
               </h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 text-left">
-                      <th className="pb-2 text-xs font-medium text-gray-500">公司名</th>
-                      <th className="pb-2 text-xs font-medium text-gray-500">负责人</th>
-                      <th className="pb-2 text-xs font-medium text-gray-500">邮箱</th>
-                      <th className="pb-2 text-xs font-medium text-gray-500">访问路径</th>
-                      <th className="pb-2 text-xs font-medium text-gray-500 text-right">成员数</th>
-                      <th className="pb-2 text-xs font-medium text-gray-500 text-right">案件数</th>
-                      <th className="pb-2 text-xs font-medium text-gray-500">创建时间</th>
+                      <th className="pb-2 text-xs font-medium text-gray-500">Organization</th>
+                      <th className="pb-2 text-xs font-medium text-gray-500">Manager</th>
+                      <th className="pb-2 text-xs font-medium text-gray-500">Email</th>
+                      <th className="pb-2 text-xs font-medium text-gray-500">URL Path</th>
+                      <th className="pb-2 text-xs font-medium text-gray-500 text-right">Members</th>
+                      <th className="pb-2 text-xs font-medium text-gray-500 text-right">Matters</th>
+                      <th className="pb-2 text-xs font-medium text-gray-500">Created</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -172,14 +172,14 @@ export default function SuperAdminDashboard({
                           <td className="py-3 text-gray-700 text-sm text-right">{g.memberCount}</td>
                           <td className="py-3 text-gray-700 text-sm text-right">{g.projectCount}</td>
                           <td className="py-3 text-gray-400 text-xs">
-                            {new Date(g.created_at).toLocaleDateString('zh-CN')}
+                            {new Date(g.created_at).toLocaleDateString('en-US')}
                           </td>
                         </tr>
                       )
                     })}
                     {groups.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center text-gray-400 text-sm">暂无团队</td>
+                        <td colSpan={7} className="py-8 text-center text-gray-400 text-sm">No teams yet</td>
                       </tr>
                     )}
                   </tbody>
@@ -189,32 +189,32 @@ export default function SuperAdminDashboard({
 
             {/* ── Password Reset ──────────────────────────────────── */}
             <section className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">重置负责人密码</h2>
+              <h2 className="text-base font-semibold text-gray-900 mb-4">Reset Admin Password</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">选择团队</label>
+                  <label className="block text-sm text-gray-700 mb-1">Select a team</label>
                   <select value={resetGroupId} onChange={e => handleGroupSelect(e.target.value)} className="input-field">
-                    <option value="">— 请选择团队 —</option>
+                    <option value="">— Select team —</option>
                     {groups.map((g: any) => (
                       <option key={g.id} value={g.id}>{g.firm_name_cn || g.name}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">新密码</label>
+                  <label className="block text-sm text-gray-700 mb-1">New password</label>
                   <div className="relative">
                     <input
                       type={showResetPwd ? 'text' : 'password'}
                       value={resetPwd}
                       onChange={e => setResetPwd(e.target.value)}
-                      placeholder="至少 8 位"
+                      placeholder="Min 8 characters"
                       className="input-field pr-16"
                     />
                     <button
                       type="button"
                       onClick={() => setShowResetPwd(v => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-700">
-                      {showResetPwd ? '隐藏' : '显示'}
+                      {showResetPwd ? 'Hide' : 'Show'}
                     </button>
                   </div>
                 </div>
@@ -222,7 +222,7 @@ export default function SuperAdminDashboard({
               {resetMsg && <p className="mt-3 text-sm">{resetMsg}</p>}
               <div className="flex gap-3 mt-4">
                 <button onClick={handleResetPwd} disabled={resetSaving} className="btn-primary">
-                  {resetSaving ? '处理中…' : '重置密码'}
+                  {resetSaving ? 'Processing…' : 'Reset password'}
                 </button>
                 <button
                   type="button"
@@ -232,7 +232,7 @@ export default function SuperAdminDashboard({
                     setShowResetPwd(true)
                   }}
                   className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium">
-                  自动生成密码
+                  Generate password
                 </button>
               </div>
             </section>
@@ -243,16 +243,16 @@ export default function SuperAdminDashboard({
           /* ── Pending Users ───────────────────────────────────── */
           <section className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-base font-semibold text-gray-900 mb-1">
-              待分配用户 <span className="text-gray-400 font-normal text-sm">（{pendingUsers.length} 人）</span>
+              Pending Users <span className="text-gray-400 font-normal text-sm">({pendingUsers.length})</span>
             </h2>
-            <p className="text-xs text-gray-500 mb-5">这些用户已注册但尚未加入任何团队，可由团队负责人通过邮箱将其添加到团队</p>
+            <p className="text-xs text-gray-500 mb-5">These users have registered but haven&apos;t joined any team yet. Team admins can add them by email.</p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 text-left">
-                    <th className="pb-2 text-xs font-medium text-gray-500">姓名</th>
-                    <th className="pb-2 text-xs font-medium text-gray-500">邮箱</th>
-                    <th className="pb-2 text-xs font-medium text-gray-500">注册时间</th>
+                    <th className="pb-2 text-xs font-medium text-gray-500">Name</th>
+                    <th className="pb-2 text-xs font-medium text-gray-500">Email</th>
+                    <th className="pb-2 text-xs font-medium text-gray-500">Registered</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -261,13 +261,13 @@ export default function SuperAdminDashboard({
                       <td className="py-3 font-medium text-gray-900">{u.name}</td>
                       <td className="py-3 text-gray-500 text-xs">{u.email}</td>
                       <td className="py-3 text-gray-400 text-xs">
-                        {new Date(u.created_at).toLocaleDateString('zh-CN')}
+                        {new Date(u.created_at).toLocaleDateString('en-US')}
                       </td>
                     </tr>
                   ))}
                   {pendingUsers.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="py-8 text-center text-gray-400 text-sm">暂无待分配用户</td>
+                      <td colSpan={3} className="py-8 text-center text-gray-400 text-sm">No pending users</td>
                     </tr>
                   )}
                 </tbody>
