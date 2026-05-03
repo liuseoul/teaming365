@@ -10,18 +10,18 @@ import { useGroupKey } from '@/lib/useGroupKey'
 import { encField, decField } from '@/lib/e2e'
 
 const STATUS_LABELS: Record<string, string> = {
-  all:       '全部',
-  active:    '进行中',
-  pending:   '待处理',
-  completed: '已完成',
-  cancelled: '未签约',
-  delayed:   '已终止',
-  archived:  '已归档',
+  all:       'All',
+  active:    'Active',
+  pending:   'Pending',
+  completed: 'Closed',
+  cancelled: 'Declined',
+  delayed:   'Terminated',
+  archived:  'Archived',
 }
 
 const STATUS_ORDER = ['all', 'active', 'pending', 'completed', 'cancelled', 'delayed', 'archived']
 
-const ROW_COLORS = ['bg-white', 'bg-teal-50']
+const ROW_COLORS = ['bg-white', 'bg-gray-50']
 
 function calcHours(logs: Array<{ started_at: string; finished_at: string | null; deleted?: boolean }>) {
   return logs
@@ -71,13 +71,28 @@ const EMPTY_FORM: EditForm = {
 }
 
 const MATTER_TYPE_LABELS: Record<string, string> = {
-  criminal: '刑事', corporate: '公司商事', family: '婚姻家事',
-  ip: '知识产权', real_estate: '房产', labor: '劳动',
-  administrative: '行政', civil: '民事', other: '其他',
+  criminal: 'Criminal', corporate: 'Corporate', family: 'Family',
+  ip: 'IP', real_estate: 'Real Estate', labor: 'Labor',
+  administrative: 'Administrative', civil: 'Civil', other: 'Other',
 }
 
 type StatsResult = { total: number; accepted: number; completed: number }
 type SortMode = 'latest_activity' | 'created_at'
+
+// ── Weekly summary types ────────────────────────────────────
+type WeeklyMatterSummary = {
+  matterId: string
+  matterName: string
+  billableH: number
+  nonBillableH: number
+  recordCount: number
+}
+type WeeklySummaryData = {
+  billableH: number
+  nonBillableH: number
+  recordCount: number
+  matters: WeeklyMatterSummary[]
+}
 
 export default function ProjectList({
   projects, profile, groupId, groupName, subdomain,
@@ -92,7 +107,6 @@ export default function ProjectList({
   const router     = useRouter()
   const isAdmin    = ['first_admin', 'second_admin'].includes(profile?.role || '')
 
-  // Generate/restore user's E2E keypair on first load (silent, background)
   const { keyPair } = useE2E(profile?.id || null)
   const groupKey = useGroupKey(profile?.id || null, groupId, keyPair)
 
@@ -105,17 +119,29 @@ export default function ProjectList({
 
   const [displayProjects, setDisplayProjects] = useState<any[]>(projects)
 
-  // ── Project Stats (Task 4) ──────────────────────────────────
+  // ── Project Stats ────────────────────────────────────────
   const [showProjStats,   setShowProjStats]   = useState(false)
   const [statsStart,      setStatsStart]      = useState('')
   const [statsEnd,        setStatsEnd]        = useState('')
   const [statsResult,     setStatsResult]     = useState<StatsResult | null>(null)
   const [showStatsResult, setShowStatsResult] = useState(false)
 
-  // ── Sort Modal (Task 8) ─────────────────────────────────────
+  // ── Sort Modal ───────────────────────────────────────────
   const [showSortModal,   setShowSortModal]   = useState(false)
   const [sortMode,        setSortMode]        = useState<SortMode>('latest_activity')
   const [pendingSortMode, setPendingSortMode] = useState<SortMode>('latest_activity')
+
+  // ── Due Today strip ──────────────────────────────────────
+  const [todayTodos,     setTodayTodos]     = useState<any[]>([])
+  const [todayReminders, setTodayReminders] = useState<any[]>([])
+  const [showTodayModal, setShowTodayModal] = useState(false)
+
+  // ── Weekly Summary ───────────────────────────────────────
+  const [showWeeklySummary,  setShowWeeklySummary]  = useState(false)
+  const [weeklyData,         setWeeklyData]         = useState<WeeklySummaryData | null>(null)
+  const [weeklyLoading,      setWeeklyLoading]      = useState(false)
+  const [weeklyMonday,       setWeeklyMonday]        = useState('')
+  const [weeklySunday,       setWeeklySunday]        = useState('')
 
   useEffect(() => {
     if (!groupKey) return
@@ -131,6 +157,102 @@ export default function ProjectList({
     })))
   }, [groupKey, projects])
 
+  // Fetch today's todos and reminders on mount
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    ;(async () => {
+      const [{ data: todosData }, { data: remsData }] = await Promise.all([
+        supabase.from('todos')
+          .select('id, content, due_date, assignee_abbrev')
+          .eq('group_id', groupId)
+          .eq('deleted', false)
+          .eq('completed', false)
+          .eq('due_date', today),
+        supabase.from('reminders')
+          .select('id, content, start_date, due_date, type')
+          .eq('group_id', groupId)
+          .eq('deleted', false)
+          .or(`start_date.eq.${today},due_date.eq.${today}`),
+      ])
+      setTodayTodos(todosData || [])
+      setTodayReminders(remsData || [])
+    })()
+  }, [groupId])
+
+  // Fetch weekly summary when modal opens
+  useEffect(() => {
+    if (!showWeeklySummary) return
+    const now = new Date()
+    const dow = now.getDay() || 7
+    const monday = new Date(now)
+    monday.setDate(now.getDate() - dow + 1)
+    monday.setHours(0, 0, 0, 0)
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    sunday.setHours(23, 59, 59, 999)
+
+    const monStr = monday.toISOString().slice(0, 10)
+    const sunStr = sunday.toISOString().slice(0, 10)
+    setWeeklyMonday(monStr)
+    setWeeklySunday(sunStr)
+
+    setWeeklyLoading(true)
+    ;(async () => {
+      const s = `${monStr}T00:00:00.000Z`
+      const e = `${sunStr}T23:59:59.999Z`
+      const [{ data: logsData }, { data: recsData }] = await Promise.all([
+        supabase.from('time_logs')
+          .select('id, started_at, finished_at, billable, project_id, projects(id, name)')
+          .eq('group_id', groupId)
+          .eq('deleted', false)
+          .gte('started_at', s)
+          .lte('started_at', e),
+        supabase.from('work_records')
+          .select('id, project_id, projects(id, name)')
+          .eq('group_id', groupId)
+          .eq('deleted', false)
+          .gte('created_at', s)
+          .lte('created_at', e),
+      ])
+
+      const logs = logsData || []
+      const recs = recsData || []
+
+      let billableH = 0, nonBillableH = 0
+      const matterMap: Record<string, WeeklyMatterSummary> = {}
+
+      for (const l of logs) {
+        if (!l.finished_at) continue
+        const mins = (new Date(l.finished_at).getTime() - new Date(l.started_at).getTime()) / 3600000
+        const pid = l.project_id || 'none'
+        const pname = (l.projects as any)?.name ? decField((l.projects as any).name, groupKey) || (l.projects as any).name : '(no matter)'
+        if (!matterMap[pid]) matterMap[pid] = { matterId: pid, matterName: pname, billableH: 0, nonBillableH: 0, recordCount: 0 }
+        if (l.billable !== false) {
+          billableH += mins
+          matterMap[pid].billableH += mins
+        } else {
+          nonBillableH += mins
+          matterMap[pid].nonBillableH += mins
+        }
+      }
+
+      for (const r of recs) {
+        const pid = r.project_id || 'none'
+        const pname = (r.projects as any)?.name ? decField((r.projects as any).name, groupKey) || (r.projects as any).name : '(no matter)'
+        if (!matterMap[pid]) matterMap[pid] = { matterId: pid, matterName: pname, billableH: 0, nonBillableH: 0, recordCount: 0 }
+        matterMap[pid].recordCount += 1
+      }
+
+      setWeeklyData({
+        billableH,
+        nonBillableH,
+        recordCount: recs.length,
+        matters: Object.values(matterMap),
+      })
+      setWeeklyLoading(false)
+    })()
+  }, [showWeeklySummary, groupId, groupKey])
+
   function openEdit(e: React.MouseEvent, project: any) {
     e.stopPropagation()
     setEditProject(project)
@@ -142,7 +264,7 @@ export default function ProjectList({
       agreement_party:       project.agreement_party || '',
       service_fee_currency:  project.service_fee_currency || '',
       service_fee_amount:    project.service_fee_amount != null ? String(project.service_fee_amount) : '',
-      collaboration_parties: (project.collaboration_parties as string[] | null)?.join('，') || '',
+      collaboration_parties: (project.collaboration_parties as string[] | null)?.join(', ') || '',
       status:                project.status || 'active',
     })
   }
@@ -154,7 +276,7 @@ export default function ProjectList({
   }
 
   async function saveEdit() {
-    if (!form.name.trim()) { alert('案件名称不能为空'); return }
+    if (!form.name.trim()) { alert('Matter name is required'); return }
     setSaving(true)
     const parties = form.collaboration_parties
       ? form.collaboration_parties.split(/[,，]/).map(s => s.trim()).filter(Boolean)
@@ -171,7 +293,7 @@ export default function ProjectList({
       status:                form.status,
     }).eq('id', editProject.id).eq('group_id', groupId)
     setSaving(false)
-    if (error) { alert('保存失败：' + error.message); return }
+    if (error) { alert('Save failed: ' + error.message); return }
     closeEdit()
     router.refresh()
   }
@@ -191,7 +313,6 @@ export default function ProjectList({
     return maxTs
   }
 
-  // Task 6 + Task 8: sort respects sortMode; delayed always at end
   const sorted = (list: any[]) => {
     const nonDelayed = list.filter((p: any) => p.status !== 'delayed')
     const delayed    = list.filter((p: any) => p.status === 'delayed')
@@ -202,7 +323,6 @@ export default function ProjectList({
       return [...nonDelayed.sort(byCt), ...delayed.sort(byCt)]
     }
 
-    // 'latest_activity' (default)
     const byActivity = (a: any, b: any) => {
       const ta = getMaxActivityTs(a), tb = getMaxActivityTs(b)
       if (ta !== tb) return tb - ta
@@ -211,10 +331,9 @@ export default function ProjectList({
     return [...nonDelayed.sort(byActivity), ...delayed.sort(byActivity)]
   }
 
-  // ── Project Stats helpers (Task 4) ──────────────────────────
   function computeStats() {
-    if (!statsStart || !statsEnd) { alert('请填写开始日期和结束日期'); return }
-    if (statsEnd < statsStart) { alert('结束日期不能早于开始日期'); return }
+    if (!statsStart || !statsEnd) { alert('Please fill in start and end dates'); return }
+    if (statsEnd < statsStart) { alert('End date cannot be before start date'); return }
     const from = new Date(statsStart).getTime()
     const to   = new Date(statsEnd + 'T23:59:59').getTime()
     const inRange = displayProjects.filter((p: any) => {
@@ -233,13 +352,15 @@ export default function ProjectList({
   const selectedProject = displayProjects.find((p: any) => p.id === selectedId) || null
 
   const STATUS_EDIT = [
-    { value: 'active',    label: '进行中' },
-    { value: 'pending',   label: '待处理' },
-    { value: 'completed', label: '已完成' },
-    { value: 'cancelled', label: '未签约' },
-    { value: 'delayed',   label: '已终止' },
-    { value: 'archived',  label: '已归档' },
+    { value: 'active',    label: 'Active' },
+    { value: 'pending',   label: 'Pending' },
+    { value: 'completed', label: 'Closed' },
+    { value: 'cancelled', label: 'Declined' },
+    { value: 'delayed',   label: 'Terminated' },
+    { value: 'archived',  label: 'Archived' },
   ]
+
+  const todayCount = todayTodos.length + todayReminders.length
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -248,7 +369,7 @@ export default function ProjectList({
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar */}
         <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-          <h1 className="text-lg font-semibold text-gray-900">案件概览</h1>
+          <h1 className="text-base font-semibold text-gray-900">Matters</h1>
           {isAdmin && (
             <button
               onClick={() => router.push(`/${subdomain}/admin`)}
@@ -256,10 +377,22 @@ export default function ProjectList({
                          text-sm font-medium px-4 py-2 rounded-lg transition-colors duration-150"
             >
               <span className="text-base leading-none">+</span>
-              <span>新建案件</span>
+              <span>New matter</span>
             </button>
           )}
         </div>
+
+        {/* Due-today strip */}
+        {todayCount > 0 && (
+          <button
+            onClick={() => setShowTodayModal(true)}
+            className="text-xs text-amber-700 bg-amber-50 border-b border-amber-200 px-6 py-2 text-left hover:bg-amber-100 transition-colors flex-shrink-0"
+          >
+            Today &middot; {todayTodos.length > 0 && `${todayTodos.length} todo${todayTodos.length > 1 ? 's' : ''} due`}
+            {todayTodos.length > 0 && todayReminders.length > 0 && ' · '}
+            {todayReminders.length > 0 && `${todayReminders.length} event${todayReminders.length > 1 ? 's' : ''}`}
+          </button>
+        )}
 
         {/* Status filter */}
         <div className="flex items-center gap-2 px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0 flex-wrap">
@@ -276,33 +409,41 @@ export default function ProjectList({
             </button>
           ))}
 
-          {/* Task 4: 项目统计 button */}
+          {/* Stats button */}
           <button
             onClick={() => { setStatsStart(''); setStatsEnd(''); setShowProjStats(true) }}
             className="px-4 py-1.5 rounded-full text-sm font-medium bg-teal-500 text-white
                        hover:bg-teal-600 transition-colors duration-150"
           >
-            案件统计
+            Stats
           </button>
 
-          {/* Task 8: 案件排序 button */}
+          {/* This Week button */}
           <button
-            onClick={() => { setPendingSortMode(sortMode); setShowSortModal(true) }}
+            onClick={() => { setWeeklyData(null); setShowWeeklySummary(true) }}
             className="px-4 py-1.5 rounded-full text-sm font-medium bg-indigo-500 text-white
                        hover:bg-indigo-600 transition-colors duration-150"
           >
-            案件排序
+            This Week
           </button>
 
-          <span className="ml-auto text-xs text-gray-400">共 {projects.length} 个案件</span>
+          {/* Sort button */}
+          <button
+            onClick={() => { setPendingSortMode(sortMode); setShowSortModal(true) }}
+            className="px-4 py-1.5 rounded-full text-sm font-medium border border-gray-300 text-gray-600
+                       hover:bg-gray-50 transition-colors duration-150"
+          >
+            Sort
+          </button>
+
+          <span className="ml-auto text-xs text-gray-400">{projects.length} records</span>
         </div>
 
-        {/* Project list */}
+        {/* Matter list */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
           {filtered.length === 0 && (
             <div className="text-center py-16 text-gray-400">
-              <div className="text-4xl mb-3">📂</div>
-              <div className="text-sm">暂无案件</div>
+              <div className="text-sm">No matters</div>
             </div>
           )}
 
@@ -337,13 +478,13 @@ export default function ProjectList({
                                    border border-gray-200 hover:border-teal-400 rounded px-1.5 py-0.5
                                    transition-colors leading-none"
                       >
-                        修改
+                        Edit
                       </button>
                     )}
                   </div>
                   <div className="text-sm text-gray-500 mt-0.5 flex items-center gap-3 truncate">
                     <span className={isCancelled ? 'line-through' : ''}>
-                      委托方：{project.client || '—'}
+                      Client: {project.client || '—'}
                     </span>
                     {project.agreement_party && (
                       <span className="text-xs text-indigo-500 font-medium">{project.agreement_party}</span>
@@ -352,14 +493,8 @@ export default function ProjectList({
                 </div>
 
                 <div className="flex items-center gap-4 text-sm text-gray-500 flex-shrink-0">
-                  <span className="flex items-center gap-1">
-                    <span className="text-gray-400">📝</span>
-                    {recordCount} 条记录
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="text-gray-400">⏱</span>
-                    {hours} 小时
-                  </span>
+                  <span>{recordCount} records</span>
+                  <span>{hours} h</span>
                 </div>
 
                 <div className="flex items-center gap-3 flex-shrink-0">
@@ -372,7 +507,7 @@ export default function ProjectList({
                       <div className="text-[10px] text-gray-400">{latestAct.operator}</div>
                     </div>
                   ) : (
-                    <span className="text-xs text-gray-300 w-28 text-right">暂无记录</span>
+                    <span className="text-xs text-gray-300 w-28 text-right">No activity</span>
                   )}
                 </div>
               </div>
@@ -392,63 +527,63 @@ export default function ProjectList({
 
       <TodoPanel profile={profile} groupId={groupId} />
 
-      {/* ══ Edit Project Modal ══════════════════════════════════ */}
+      {/* ══ Edit Matter Modal ═══════════════════════════════════ */}
       {editProject && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-xl border border-gray-200 w-full max-w-lg max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-base font-semibold text-gray-900">修改案件信息</h3>
+              <h3 className="text-base font-semibold text-gray-900">Edit matter</h3>
               <button onClick={closeEdit} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  案件名称 <span className="text-red-500">*</span>
+                  Matter name <span className="text-red-500">*</span>
                 </label>
                 <input type="text" value={form.name} onChange={e => setField('name', e.target.value)}
                   className="input-field" autoFocus />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">委托方</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
                 <input type="text" value={form.client} onChange={e => setField('client', e.target.value)}
                   className="input-field" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">案件类型</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Matter type</label>
                 <select value={form.matter_type} onChange={e => setField('matter_type', e.target.value)} className="input-field">
-                  <option value="">请选择（可选）</option>
+                  <option value="">Select (optional)</option>
                   {Object.entries(MATTER_TYPE_LABELS).map(([v, l]) => (
                     <option key={v} value={v}>{l}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">协议方</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Counterparty</label>
                 <input type="text" value={form.agreement_party}
                   onChange={e => setField('agreement_party', e.target.value)} className="input-field" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">服务费币种</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fee currency</label>
                   <input type="text" value={form.service_fee_currency}
                     onChange={e => setField('service_fee_currency', e.target.value)}
                     placeholder="CNY / USD / KRW…" className="input-field" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">服务费金额</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fee amount</label>
                   <input type="number" value={form.service_fee_amount}
                     onChange={e => setField('service_fee_amount', e.target.value)} className="input-field" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">协作方</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Co-counsel</label>
                 <input type="text" value={form.collaboration_parties}
                   onChange={e => setField('collaboration_parties', e.target.value)}
-                  placeholder="多个协作方用逗号分隔" className="input-field" />
+                  placeholder="Separate multiple parties with commas" className="input-field" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">状态</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <div className="grid grid-cols-2 gap-2">
                   {STATUS_EDIT.map(s => (
                     <button key={s.value} type="button" onClick={() => setField('status', s.value)}
@@ -462,7 +597,7 @@ export default function ProjectList({
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <textarea value={form.description} onChange={e => setField('description', e.target.value)}
                   rows={3} className="input-field resize-none" />
               </div>
@@ -471,123 +606,104 @@ export default function ProjectList({
             <div className="flex gap-3 px-6 py-4 border-t border-gray-200 flex-shrink-0">
               <button onClick={closeEdit}
                 className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                取消
+                Cancel
               </button>
               <button onClick={saveEdit} disabled={saving}
                 className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700
                            rounded-lg disabled:bg-gray-200 disabled:text-gray-400 transition-colors">
-                {saving ? '保存中…' : '保存'}
+                {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ══ 项目统计 — Step 1: Date range modal (Task 4) ════════ */}
+      {/* ══ Stats — date range modal ═════════════════════════════ */}
       {showProjStats && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 w-full max-w-sm p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-semibold text-gray-900">案件统计</h3>
+              <h3 className="text-base font-semibold text-gray-900">Matter stats</h3>
               <button onClick={() => setShowProjStats(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
             </div>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  开始日期 <span className="text-red-500">*</span>
+                  Start date <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  value={statsStart}
-                  onChange={e => setStatsStart(e.target.value)}
-                  className="input-field"
-                />
+                <input type="date" value={statsStart} onChange={e => setStatsStart(e.target.value)} className="input-field" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  结束日期 <span className="text-red-500">*</span>
+                  End date <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  value={statsEnd}
-                  onChange={e => setStatsEnd(e.target.value)}
-                  className="input-field"
-                />
+                <input type="date" value={statsEnd} onChange={e => setStatsEnd(e.target.value)} className="input-field" />
               </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowProjStats(false)}
                 className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                取消
+                Cancel
               </button>
               <button onClick={computeStats}
-                className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700
-                           rounded-lg transition-colors">
-                统计
+                className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">
+                View stats
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ══ 项目统计 — Step 2: Results modal (Task 4) ══════════ */}
+      {/* ══ Stats — results modal ═══════════════════════════════ */}
       {showStatsResult && statsResult && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+          <div className="bg-white rounded-xl border border-gray-200 w-full max-w-sm p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-semibold text-gray-900">统计结果</h3>
+              <h3 className="text-base font-semibold text-gray-900">Stats result</h3>
               <button onClick={() => setShowStatsResult(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
             </div>
-            <p className="text-xs text-gray-500 mb-4">
-              统计区间：{statsStart} ~ {statsEnd}
-            </p>
+            <p className="text-xs text-gray-500 mb-4">{statsStart} – {statsEnd}</p>
             <div className="space-y-3">
               <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-700">新立案件数</span>
+                <span className="text-sm text-gray-700">Matters opened</span>
                 <span className="text-lg font-bold text-teal-600">{statsResult.total}</span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-700">已承接案件数</span>
+                <span className="text-sm text-gray-700">Matters accepted</span>
                 <span className="text-lg font-bold text-teal-600">{statsResult.accepted}</span>
               </div>
               <div className="flex items-center justify-between py-2">
-                <span className="text-sm text-gray-700">已完成案件数</span>
+                <span className="text-sm text-gray-700">Matters closed</span>
                 <span className="text-lg font-bold text-teal-600">{statsResult.completed}</span>
               </div>
             </div>
-            <button
-              onClick={() => setShowStatsResult(false)}
-              className="w-full mt-5 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors"
-            >
-              关闭
+            <button onClick={() => setShowStatsResult(false)}
+              className="w-full mt-5 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">
+              Close
             </button>
           </div>
         </div>
       )}
 
-      {/* ══ 项目排序 modal (Task 8) ══════════════════════════════ */}
+      {/* ══ Sort modal ══════════════════════════════════════════ */}
       {showSortModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs p-6">
+          <div className="bg-white rounded-xl border border-gray-200 w-full max-w-xs p-6">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-semibold text-gray-900">案件排序</h3>
+              <h3 className="text-base font-semibold text-gray-900">Sort matters</h3>
               <button onClick={() => setShowSortModal(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
             </div>
             <div className="space-y-3">
               {([
-                { value: 'latest_activity', label: '按最新操作时间' },
-                { value: 'created_at',      label: '按创建时间' },
+                { value: 'latest_activity', label: 'By latest activity' },
+                { value: 'created_at',      label: 'By creation date' },
               ] as { value: SortMode; label: string }[]).map(opt => (
                 <label key={opt.value}
                   className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    name="sortMode"
-                    value={opt.value}
+                  <input type="radio" name="sortMode" value={opt.value}
                     checked={pendingSortMode === opt.value}
                     onChange={() => setPendingSortMode(opt.value)}
-                    className="accent-teal-600"
-                  />
+                    className="accent-teal-600" />
                   <span className="text-sm text-gray-700">{opt.label}</span>
                 </label>
               ))}
@@ -595,15 +711,113 @@ export default function ProjectList({
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowSortModal(false)}
                 className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                取消
+                Cancel
               </button>
-              <button
-                onClick={() => { setSortMode(pendingSortMode); setShowSortModal(false) }}
-                className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700
-                           rounded-lg transition-colors"
-              >
-                确认
+              <button onClick={() => { setSortMode(pendingSortMode); setShowSortModal(false) }}
+                className="flex-1 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">
+                Apply
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ Today modal ═════════════════════════════════════════ */}
+      {showTodayModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-gray-200 w-full max-w-sm max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+              <h3 className="text-base font-semibold text-gray-900">Today</h3>
+              <button onClick={() => setShowTodayModal(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              {todayTodos.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Todos due today</p>
+                  <div className="space-y-1">
+                    {todayTodos.map(t => (
+                      <div key={t.id} className="text-sm text-gray-800 px-2 py-1.5 rounded bg-amber-50 border border-amber-100">
+                        {t.content}
+                        {t.assignee_abbrev && <span className="ml-2 text-[10px] font-bold text-teal-600">{t.assignee_abbrev}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {todayReminders.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Events today</p>
+                  <div className="space-y-1">
+                    {todayReminders.map(r => (
+                      <div key={r.id} className="text-sm text-gray-800 px-2 py-1.5 rounded bg-teal-50 border border-teal-100">
+                        {r.content}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ Weekly Summary modal ════════════════════════════════ */}
+      {showWeeklySummary && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl border border-gray-200 w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">This Week</h3>
+                {weeklyMonday && <p className="text-xs text-gray-400 mt-0.5">{weeklyMonday} – {weeklySunday}</p>}
+              </div>
+              <button onClick={() => setShowWeeklySummary(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {weeklyLoading && <p className="text-sm text-gray-400 text-center py-8">Loading…</p>}
+              {!weeklyLoading && weeklyData && (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-teal-50 rounded-lg p-3 text-center">
+                      <div className="text-lg font-bold text-teal-700">{weeklyData.billableH.toFixed(1)}h</div>
+                      <div className="text-xs text-teal-600 mt-0.5">Billable</div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <div className="text-lg font-bold text-gray-600">{weeklyData.nonBillableH.toFixed(1)}h</div>
+                      <div className="text-xs text-gray-500 mt-0.5">Non-billable</div>
+                    </div>
+                    <div className="bg-indigo-50 rounded-lg p-3 text-center">
+                      <div className="text-lg font-bold text-indigo-700">{weeklyData.recordCount}</div>
+                      <div className="text-xs text-indigo-600 mt-0.5">Work records</div>
+                    </div>
+                  </div>
+
+                  {weeklyData.matters.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Per matter</h4>
+                      <table className="w-full text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-gray-50 text-gray-500">
+                            <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">Matter</th>
+                            <th className="text-right px-2 py-1.5 border border-gray-200 font-medium">Billable</th>
+                            <th className="text-right px-2 py-1.5 border border-gray-200 font-medium">Non-billable</th>
+                            <th className="text-right px-2 py-1.5 border border-gray-200 font-medium">Records</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {weeklyData.matters.map(m => (
+                            <tr key={m.matterId} className="hover:bg-gray-50">
+                              <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{m.matterName}</td>
+                              <td className="px-2 py-1.5 border border-gray-200 text-teal-600 font-semibold text-right">{m.billableH.toFixed(1)}h</td>
+                              <td className="px-2 py-1.5 border border-gray-200 text-gray-500 text-right">{m.nonBillableH.toFixed(1)}h</td>
+                              <td className="px-2 py-1.5 border border-gray-200 text-gray-600 text-right">{m.recordCount}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
