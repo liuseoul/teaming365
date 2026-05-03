@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSignIn, useSignUp, useAuth, useClerk } from '@clerk/nextjs'
 
@@ -139,11 +139,13 @@ export default function LoginPage() {
   const router = useRouter()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { signIn } = useSignIn() as any
-  // In Clerk v7 useSignUp() returns the resource directly (SignUpSignalValue)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const signUp = useSignUp() as any
+  const { signUp } = useSignUp() as any
   const { userId, isLoaded: authLoaded } = useAuth()
   const { setActive, signOut } = useClerk()
+  // Persist the SignUp resource returned by create() so verify step can call attemptEmailAddressVerification on it
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const signUpResultRef = useRef<any>(null)
   const [step, setStep]         = useState<'login' | 'group' | 'reset-email' | 'reset-code' | 'register' | 'register-verify'>('login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -171,6 +173,7 @@ export default function LoginPage() {
         password: regPassword,
         firstName: regName.trim(),
       })
+      signUpResultRef.current = result  // persist for verify step
       const regStatus    = result?.status          ?? signUp?.status
       const regUserId    = result?.createdUserId   ?? signUp?.createdUserId
       const regSessionId = result?.createdSessionId ?? signUp?.createdSessionId
@@ -180,8 +183,8 @@ export default function LoginPage() {
         await setActive!({ session: regSessionId })
         window.location.href = '/pending'
       } else {
-        // Email verification required
-        await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' })
+        // Email verification required — call on result (updated signUp resource)
+        await result.prepareEmailAddressVerification({ strategy: 'email_code' })
         setStep('register-verify')
       }
     } catch (err: any) {
@@ -196,7 +199,9 @@ export default function LoginPage() {
     if (!regCode.trim()) { setRegMsg('❌ 请输入验证码'); return }
     setRegLoading(true); setRegMsg('')
     try {
-      const result: any = await signUp!.attemptEmailAddressVerification({ code: regCode.trim() })
+      // Use the persisted SignUp resource (updated after create()) so attemptEmailAddressVerification is available
+      const signUpResource = signUpResultRef.current ?? signUp
+      const result: any = await signUpResource.attemptEmailAddressVerification({ code: regCode.trim() })
       const vStatus    = result?.status           ?? signUp?.status
       const vUserId    = result?.createdUserId    ?? signUp?.createdUserId
       const vSessionId = result?.createdSessionId ?? signUp?.createdSessionId
