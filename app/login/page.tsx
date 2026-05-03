@@ -1,7 +1,7 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSignIn, useSignUp, useAuth, useClerk } from '@clerk/nextjs'
+import { useSignIn, useAuth, useClerk } from '@clerk/nextjs'
 
 type Group = { id: string; name: string; description: string; role: string; subdomain: string | null }
 
@@ -139,13 +139,11 @@ export default function LoginPage() {
   const router = useRouter()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { signIn } = useSignIn() as any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { signUp } = useSignUp() as any
   const { userId, isLoaded: authLoaded } = useAuth()
   const { setActive, signOut } = useClerk()
-  // Persist the SignUp resource returned by create() so verify step can call attemptEmailAddressVerification on it
+  // Helper: get the actual Clerk SignUp singleton which has all prototype methods
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const signUpResultRef = useRef<any>(null)
+  const getClerkSignUp = (): any => (window as any).Clerk?.client?.signUp
   const [step, setStep]         = useState<'login' | 'group' | 'reset-email' | 'reset-code' | 'register' | 'register-verify'>('login')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -168,23 +166,26 @@ export default function LoginPage() {
     if (regPassword.length < 8) { setRegMsg('❌ 密码至少 8 位'); return }
     setRegLoading(true); setRegMsg('')
     try {
-      const result: any = await signUp!.create({
+      // Use the global Clerk singleton — it has all prototype methods and is mutated in place by create()
+      const su = getClerkSignUp()
+      if (!su) { setRegMsg('❌ 认证服务未就绪，请刷新后重试'); setRegLoading(false); return }
+      await su.create({
         emailAddress: regEmail.trim().toLowerCase(),
         password: regPassword,
         firstName: regName.trim(),
       })
-      signUpResultRef.current = result  // persist for verify step
-      const regStatus    = result?.status          ?? signUp?.status
-      const regUserId    = result?.createdUserId   ?? signUp?.createdUserId
-      const regSessionId = result?.createdSessionId ?? signUp?.createdSessionId
+      // su is now mutated with the new state; read status from it
+      const regStatus    = su.status
+      const regUserId    = su.createdUserId
+      const regSessionId = su.createdSessionId
       if (regStatus === 'complete') {
         // No email verification required — save profile and redirect
         await saveProfile(regUserId!)
         await setActive!({ session: regSessionId })
         window.location.href = '/pending'
       } else {
-        // Email verification required — call on result (updated signUp resource)
-        await result.prepareEmailAddressVerification({ strategy: 'email_code' })
+        // Email verification required — su.prepareEmailAddressVerification is now available after create()
+        await su.prepareEmailAddressVerification({ strategy: 'email_code' })
         setStep('register-verify')
       }
     } catch (err: any) {
@@ -199,18 +200,18 @@ export default function LoginPage() {
     if (!regCode.trim()) { setRegMsg('❌ 请输入验证码'); return }
     setRegLoading(true); setRegMsg('')
     try {
-      // Use the persisted SignUp resource (updated after create()) so attemptEmailAddressVerification is available
-      const signUpResource = signUpResultRef.current ?? signUp
-      const result: any = await signUpResource.attemptEmailAddressVerification({ code: regCode.trim() })
-      const vStatus    = result?.status           ?? signUp?.status
-      const vUserId    = result?.createdUserId    ?? signUp?.createdUserId
-      const vSessionId = result?.createdSessionId ?? signUp?.createdSessionId
+      const su = getClerkSignUp()
+      if (!su) { setRegMsg('❌ 认证服务未就绪，请刷新后重试'); setRegLoading(false); return }
+      await su.attemptEmailAddressVerification({ code: regCode.trim() })
+      const vStatus    = su.status
+      const vUserId    = su.createdUserId
+      const vSessionId = su.createdSessionId
       if (vStatus === 'complete') {
-        await saveProfile(vUserId!)
-        await setActive!({ session: vSessionId })
+        await saveProfile(vUserId ?? su.createdUserId ?? '')
+        await setActive!({ session: vSessionId ?? su.createdSessionId })
         window.location.href = '/pending'
       } else {
-        setRegMsg('❌ 验证未完成，请重试')
+        setRegMsg(`❌ 验证未完成 (status: ${vStatus})，请重试`)
       }
     } catch (err: any) {
       setRegMsg(`❌ ${err?.errors?.[0]?.longMessage || err?.errors?.[0]?.message || err?.message || JSON.stringify(err)}`)
