@@ -53,16 +53,35 @@ export default async function SuperAdminPage({
       `)
       .eq('group_members.role', 'first_admin')
       .order('created_at', { ascending: false }),
-    supabase.from('group_members').select('group_id, user_id'),
+    supabase.from('group_members').select('group_id, user_id, role, groups(name)'),
     supabase.from('projects').select('group_id'),
   ])
 
-  // Fetch profiles with no group membership (pending users)
+  // Fetch all non-super-admin profiles
   const { data: allProfiles } = await supabase
     .from('profiles')
     .select('id, name, email, created_at')
     .eq('is_super_admin', false)
     .order('created_at', { ascending: false })
+
+  // Build userId → first team membership map
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userTeamMap: Record<string, { teamName: string; role: string }> = {}
+  for (const m of allMembers || []) {
+    if (!userTeamMap[(m as any).user_id]) {
+      userTeamMap[(m as any).user_id] = {
+        teamName: (m as any).groups?.name || '—',
+        role: (m as any).role,
+      }
+    }
+  }
+
+  // All users with team info
+  const allUsers = (allProfiles || []).map(p => ({
+    ...p,
+    teamName: userTeamMap[p.id]?.teamName ?? null,
+    role:     userTeamMap[p.id]?.role     ?? null,
+  }))
 
   const memberUserIds = new Set((allMembers || []).map((m: any) => m.user_id))
   const pending = (allProfiles || []).filter(p => !memberUserIds.has(p.id))
@@ -88,6 +107,7 @@ export default async function SuperAdminPage({
       profile={profile}
       groups={enrichedGroups}
       pendingUsers={pending}
+      allUsers={allUsers}
     />
   )
 }

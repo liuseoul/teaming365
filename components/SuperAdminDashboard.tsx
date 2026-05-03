@@ -24,21 +24,37 @@ function generatePassword(): string {
   return rand(upper) + rest.join('') // Always starts with uppercase letter
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  first_admin:  'Primary Admin',
+  second_admin: 'Secondary Admin',
+  member:       'Member',
+}
+const ROLE_COLORS: Record<string, string> = {
+  first_admin:  'bg-purple-100 text-purple-700',
+  second_admin: 'bg-blue-100 text-blue-700',
+  member:       'bg-gray-100 text-gray-600',
+}
+
 export default function SuperAdminDashboard({
   profile,
   groups,
   pendingUsers,
+  allUsers,
 }: {
   profile: { id: string; name: string }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   groups: any[]
   pendingUsers: { id: string; name: string; email: string; created_at: string }[]
+  allUsers: { id: string; name: string; email: string; created_at: string; teamName: string | null; role: string | null }[]
 }) {
   const router = useRouter()
   const { signOut } = useClerk()
 
   // ── Tab state ───────────────────────────────────────────────
-  const [tab, setTab] = useState<'groups' | 'pending'>('groups')
+  const [tab, setTab] = useState<'groups' | 'pending' | 'users'>('groups')
+
+  // ── All Users search ────────────────────────────────────────
+  const [userSearch, setUserSearch] = useState('')
 
   // ── Password reset state ────────────────────────────────────
   const [resetGroupId,  setResetGroupId]  = useState('')
@@ -118,11 +134,13 @@ export default function SuperAdminDashboard({
 
       {/* Tab bar */}
       <div className="flex border-b border-gray-200 bg-white px-6">
-        {(['groups', 'pending'] as const).map(key => (
+        {(['groups', 'users', 'pending'] as const).map(key => (
           <button key={key} onClick={() => setTab(key)}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors
               ${tab === key ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            {key === 'groups' ? 'All Teams' : 'Pending Users'}
+            {key === 'groups' ? 'All Teams'
+              : key === 'users' ? `All Users (${allUsers.length})`
+              : `Pending (${pendingUsers.length})`}
           </button>
         ))}
       </div>
@@ -237,6 +255,75 @@ export default function SuperAdminDashboard({
               </div>
             </section>
           </>
+        )}
+
+        {tab === 'users' && (
+          /* ── All Users ───────────────────────────────────────── */
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-gray-900">
+                All Users <span className="text-gray-400 font-normal text-sm">({allUsers.length})</span>
+              </h2>
+              <input
+                type="text"
+                placeholder="Search name or email…"
+                value={userSearch}
+                onChange={e => setUserSearch(e.target.value)}
+                className="input-field w-56 text-sm"
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-left">
+                    <th className="pb-2 text-xs font-medium text-gray-500">Name</th>
+                    <th className="pb-2 text-xs font-medium text-gray-500">Email</th>
+                    <th className="pb-2 text-xs font-medium text-gray-500">Team</th>
+                    <th className="pb-2 text-xs font-medium text-gray-500">Role</th>
+                    <th className="pb-2 text-xs font-medium text-gray-500">Registered</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allUsers
+                    .filter(u =>
+                      !userSearch ||
+                      u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+                      u.email.toLowerCase().includes(userSearch.toLowerCase())
+                    )
+                    .map(u => (
+                      <tr key={u.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                        <td className="py-3 font-medium text-gray-900">{u.name}</td>
+                        <td className="py-3 text-gray-500 text-xs">{u.email}</td>
+                        <td className="py-3 text-gray-700 text-xs">
+                          {u.teamName
+                            ? <span className="font-mono text-teal-700 bg-teal-50 px-2 py-0.5 rounded">{u.teamName}</span>
+                            : <span className="text-gray-400">—</span>}
+                        </td>
+                        <td className="py-3">
+                          {u.role
+                            ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
+                                {ROLE_LABELS[u.role] || u.role}
+                              </span>
+                            : <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">Pending</span>}
+                        </td>
+                        <td className="py-3 text-gray-400 text-xs">
+                          {new Date(u.created_at).toLocaleDateString('en-US')}
+                        </td>
+                      </tr>
+                    ))}
+                  {allUsers.filter(u =>
+                    !userSearch ||
+                    u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+                    u.email.toLowerCase().includes(userSearch.toLowerCase())
+                  ).length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-gray-400 text-sm">No users found</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
         )}
 
         {tab === 'pending' && (
