@@ -91,32 +91,31 @@ export default function TeamStatsPage({
 
         {/* Header */}
         <div className="flex items-center px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-          <h1 className="text-lg font-semibold text-gray-900">Team Stats</h1>
+          <h1 className="text-lg font-semibold text-gray-900">Team Work Statistics</h1>
           <span className="ml-3 text-sm text-gray-400">· {groupName}</span>
         </div>
 
         {/* Controls */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+        <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0 space-y-3">
+          {/* Row 1: mode toggle */}
+          <div className="flex gap-1.5">
+            <button onClick={() => { setMode('single'); setQueried(false) }}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
+                ${mode === 'single'
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
+              Single day
+            </button>
+            <button onClick={() => { setMode('range'); setQueried(false) }}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
+                ${mode === 'range'
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
+              Date range
+            </button>
+          </div>
+          {/* Row 2: date inputs + confirm */}
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Mode toggle */}
-            <div className="flex gap-1.5">
-              <button onClick={() => { setMode('single'); setQueried(false) }}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
-                  ${mode === 'single'
-                    ? 'bg-slate-800 text-white border-slate-800'
-                    : 'text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
-                Single day
-              </button>
-              <button onClick={() => { setMode('range'); setQueried(false) }}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
-                  ${mode === 'range'
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
-                Date range
-              </button>
-            </div>
-
-            {/* Date inputs */}
             {mode === 'single' ? (
               <input type="date" value={date}
                 onChange={e => { setDate(e.target.value); setQueried(false) }}
@@ -132,12 +131,10 @@ export default function TeamStatsPage({
                   className="input-field w-40" />
               </>
             )}
-
             <button onClick={loadStats} disabled={loading}
               className="px-5 py-2 text-white text-sm font-medium rounded-lg bg-slate-800 hover:bg-slate-700 disabled:bg-gray-200 disabled:text-gray-400 transition-colors">
               {loading ? 'Loading…' : 'Confirm'}
             </button>
-
             {queried && !loading && (
               <span className="text-xs text-gray-400 ml-1">
                 {records.length + timeLogs.length + todos.length} entries

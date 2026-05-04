@@ -38,11 +38,13 @@ export default function InvoiceView({
   const [dateFrom, setDateFrom] = useState(firstOfMonth)
   const [dateTo,   setDateTo]   = useState(today)
   const [hourlyRate, setHourlyRate] = useState('')
-  const [currency,   setCurrency]   = useState('USD')
+  const [currency,   setCurrency]   = useState('')
   const [timeLogs,   setTimeLogs]   = useState<any[]>([])
   const [loading,    setLoading]    = useState(false)
   const [generated,  setGenerated]  = useState(false)
-  const [invoiceNo,  setInvoiceNo]  = useState(() => `INV-${Date.now().toString().slice(-6)}`)
+  const [invoiceNo,  setInvoiceNo]  = useState('')
+  const [vatAmount,  setVatAmount]  = useState('')
+  const [vatIncluded, setVatIncluded] = useState<'included' | 'not_included' | ''>('')
 
   const printRef = useRef<HTMLDivElement>(null)
 
@@ -141,12 +143,34 @@ export default function InvoiceView({
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Currency</label>
               <select value={currency} onChange={e => setCurrency(e.target.value)} className="input-field">
+                <option value="">— Select —</option>
                 <option value="USD">USD</option>
                 <option value="CNY">CNY</option>
                 <option value="KRW">KRW</option>
                 <option value="EUR">EUR</option>
                 <option value="HKD">HKD</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">VAT (optional)</label>
+              <input type="number" min="0" step="0.01" value={vatAmount}
+                onChange={e => setVatAmount(e.target.value)}
+                placeholder="e.g. 50" className="input-field" />
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-xs font-medium text-gray-600 mb-1">VAT status</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setVatIncluded('included')}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded border transition-colors
+                    ${vatIncluded === 'included' ? 'bg-teal-600 text-white border-teal-600' : 'text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                  INCLUDED
+                </button>
+                <button type="button" onClick={() => setVatIncluded('not_included')}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded border transition-colors
+                    ${vatIncluded === 'not_included' ? 'bg-slate-700 text-white border-slate-700' : 'text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                  NOT INCLUDED
+                </button>
+              </div>
             </div>
           </div>
           <div className="flex gap-3 mt-4">
@@ -254,16 +278,29 @@ export default function InvoiceView({
                       {Math.floor(totalHours)}h {Math.round((totalHours % 1) * 60)}m
                     </span>
                   </div>
-                  {rate > 0 && (
+                  {rate > 0 && currency && (
                     <>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Hourly rate</span>
                         <span className="text-gray-700">{fmtMoney(rate, currency)}</span>
                       </div>
+                      {vatAmount && parseFloat(vatAmount) > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">
+                            VAT{vatIncluded === 'included' ? ' (included)' : vatIncluded === 'not_included' ? ' (not included)' : ''}
+                          </span>
+                          <span className="text-gray-700">{fmtMoney(parseFloat(vatAmount), currency)}</span>
+                        </div>
+                      )}
                       <div className="h-px bg-gray-200" />
                       <div className="flex justify-between text-base font-bold">
                         <span className="text-gray-900">Total</span>
-                        <span className="text-teal-700">{fmtMoney(totalAmount, currency)}</span>
+                        <span className="text-teal-700">
+                          {fmtMoney(
+                            vatIncluded === 'not_included' ? totalAmount + parseFloat(vatAmount || '0') : totalAmount,
+                            currency
+                          )}
+                        </span>
                       </div>
                     </>
                   )}

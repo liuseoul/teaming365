@@ -149,6 +149,13 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
   const [newTodoAssignee,       setNewTodoAssignee]       = useState('')
   const [newTodoDueDate,        setNewTodoDueDate]        = useState('')
   const [todoSaving,            setTodoSaving]            = useState(false)
+  const [activeTodoId,          setActiveTodoId]          = useState<string | null>(null)
+  const [completingIds,         setCompletingIds]         = useState<Set<string>>(new Set())
+  const [editTodoId,            setEditTodoId]            = useState<string | null>(null)
+  const [editTodoContent,       setEditTodoContent]       = useState('')
+  const [editTodoAssignee,      setEditTodoAssignee]      = useState('')
+  const [editTodoDueDate,       setEditTodoDueDate]       = useState('')
+  const [editTodoSaving,        setEditTodoSaving]        = useState(false)
 
   useEffect(() => {
     const uid = profile?.id || null
@@ -210,6 +217,45 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
       completed_by_name: profile?.name || '',
     }).eq('id', id).eq('group_id', groupId)
     setSidebarTodos(prev => prev.filter((t: any) => t.id !== id))
+  }
+
+  function memberInitials(name: string) {
+    return name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 3)
+  }
+
+  async function handleCompleteTodo(id: string) {
+    setCompletingIds(prev => new Set([...prev, id]))
+    setTimeout(async () => {
+      await completeSidebarTodo(id)
+      setCompletingIds(prev => { const s = new Set(prev); s.delete(id); return s })
+    }, 500)
+  }
+
+  async function deleteTodo(id: string) {
+    await supabase.from('todos').update({ deleted: true }).eq('id', id).eq('group_id', groupId)
+    setSidebarTodos(prev => prev.filter((t: any) => t.id !== id))
+    setActiveTodoId(null)
+  }
+
+  function openEditTodo(todo: any) {
+    setEditTodoId(todo.id)
+    setEditTodoContent(todo.content)
+    setEditTodoAssignee(todo.assignee_abbrev || '')
+    setEditTodoDueDate(todo.due_date || '')
+    setActiveTodoId(null)
+  }
+
+  async function saveEditTodo() {
+    if (!editTodoId || !editTodoContent.trim()) return
+    setEditTodoSaving(true)
+    await supabase.from('todos').update({
+      content: encField(editTodoContent.trim(), groupKey) ?? editTodoContent.trim(),
+      assignee_abbrev: editTodoAssignee || null,
+      due_date: editTodoDueDate || null,
+    }).eq('id', editTodoId).eq('group_id', groupId)
+    setEditTodoSaving(false)
+    setEditTodoId(null)
+    await loadSidebarTodos()
   }
 
   async function loadReminders() {
@@ -505,7 +551,9 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
         <header className="bg-white border-b border-gray-200 flex-shrink-0 z-20 no-print">
 
           {/* ── Single row: tabs + admin tab + avatar ── */}
-          <div className="flex items-end px-3 gap-0.5 overflow-x-auto">
+          <div className="flex items-end px-3">
+          {/* Scrollable tabs */}
+          <div className="flex items-end gap-0.5 overflow-x-auto flex-1 min-w-0">
             {[
               { href: `/${subdomain}/dashboard`, label: 'Today',      icon: '🗓️' },
               { href: `/${subdomain}/projects`,  label: 'Matters',    icon: '📋' },
@@ -542,8 +590,9 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
               </button>
             )}
 
-            <div className="flex-1" />
-
+          </div>{/* end scrollable tabs */}
+          {/* Fixed right controls — outside overflow container so dropdown isn't clipped */}
+          <div className="flex items-center gap-1.5 flex-shrink-0 pb-1 pl-2">
             {/* Group switcher */}
             {myGroups.length > 1 && (
               <button onClick={() => setShowGroupPicker(true)}
@@ -578,7 +627,8 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                 </div>
               )}
             </div>
-          </div>
+          </div>{/* end fixed right */}
+          </div>{/* end single row */}
         </header>
 
         {/* ── BODY ─────────────────────────────────────────────── */}
@@ -613,29 +663,55 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
               <div className="flex-1 overflow-y-auto pb-2 space-y-0.5 w-4/5 mx-auto">
                 {displaySidebarTodos.length === 0 ? (
                   <p className="text-xs text-gray-400 text-center py-3">All clear ✓</p>
-                ) : displaySidebarTodos.slice(0, 8).map((todo: any) => (
-                  <div key={todo.id}
-                    className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-slate-50 group transition-colors">
-                    <button
-                      onClick={() => completeSidebarTodo(todo.id)}
-                      className="w-4 h-4 rounded border-2 border-gray-300 group-hover:border-slate-500 flex-shrink-0 mt-0.5 transition-colors"
-                      title="Mark complete" />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm text-gray-800 leading-snug line-clamp-2">{todo.content}</div>
-                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                        {todo.assignee_abbrev && (
-                          <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-1 rounded">{todo.assignee_abbrev}</span>
-                        )}
-                        {todo.due_date && (
-                          <span className={`text-[10px] font-medium ${todo.due_date < todayStr ? 'text-rose-600 font-semibold' : 'text-gray-400'}`}>
-                            {todo.due_date.slice(5, 7)}/{todo.due_date.slice(8, 10)}
-                            {todo.due_date < todayStr ? ' ⚠' : ''}
-                          </span>
+                ) : displaySidebarTodos.slice(0, 8).map((todo: any) => {
+                  const isCompleting = completingIds.has(todo.id)
+                  const isActive = activeTodoId === todo.id
+                  return (
+                    <div key={todo.id}
+                      onClick={() => setActiveTodoId(isActive ? null : todo.id)}
+                      className={`flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors ${isActive ? 'bg-slate-100' : 'hover:bg-slate-50'}`}>
+                      <button
+                        onClick={e => { e.stopPropagation(); handleCompleteTodo(todo.id) }}
+                        className={`w-4 h-4 rounded border-2 flex-shrink-0 mt-0.5 transition-all
+                          ${isCompleting ? 'border-green-500 bg-green-100' : 'border-gray-300 hover:border-slate-500'}`}
+                        title="Mark complete">
+                        {isCompleting && <span className="text-[8px] text-green-600 font-bold flex items-center justify-center h-full">✓</span>}
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <div className={`text-sm leading-snug line-clamp-2 ${isCompleting ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                          {todo.content}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          {todo.assignee_abbrev && (
+                            <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-1 rounded">{todo.assignee_abbrev}</span>
+                          )}
+                          {todo.due_date && (
+                            <span className={`text-[10px] font-medium ${todo.due_date < todayStr ? 'text-rose-600 font-semibold' : 'text-gray-400'}`}>
+                              {todo.due_date.slice(5, 7)}/{todo.due_date.slice(8, 10)}
+                              {todo.due_date < todayStr ? ' ⚠' : ''}
+                            </span>
+                          )}
+                        </div>
+                        {isActive && (
+                          <div className="flex gap-1.5 mt-1.5" onClick={e => e.stopPropagation()}>
+                            <button onClick={() => openEditTodo(todo)}
+                              className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-600 text-white hover:bg-slate-700 transition-colors">
+                              Edit
+                            </button>
+                            <button onClick={() => deleteTodo(todo.id)}
+                              className="text-[10px] font-medium px-2 py-0.5 rounded bg-rose-500 text-white hover:bg-rose-600 transition-colors">
+                              Delete
+                            </button>
+                            <button onClick={() => setActiveTodoId(null)}
+                              className="text-[10px] font-medium px-2 py-0.5 rounded bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors">
+                              Cancel
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
                 {displaySidebarTodos.length > 8 && (
                   <button onClick={() => setShowAllTodos(true)}
                     className="w-full text-[10px] text-indigo-600 hover:text-indigo-800 py-1 text-center font-medium transition-colors">
@@ -1024,17 +1100,27 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                 <textarea value={newTodoContent} onChange={e => setNewTodoContent(e.target.value)}
                   placeholder="What needs to be done?" rows={3} className="input-field resize-none" autoFocus />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
-                  <input type="text" value={newTodoAssignee} onChange={e => setNewTodoAssignee(e.target.value)}
-                    placeholder="e.g. LW" className="input-field" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Assignee</label>
+                <div className="flex flex-wrap gap-1.5">
+                  <button type="button" onClick={() => setNewTodoAssignee('')}
+                    className={`text-xs px-2.5 py-1 rounded border transition-colors
+                      ${newTodoAssignee === '' ? 'border-slate-500 bg-slate-50 text-slate-700 font-medium' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                    Unassigned
+                  </button>
+                  {members.map(m => (
+                    <button key={m.id} type="button" onClick={() => setNewTodoAssignee(memberInitials(m.name))}
+                      className={`text-xs px-2.5 py-1 rounded border transition-colors
+                        ${newTodoAssignee === memberInitials(m.name) ? 'border-slate-500 bg-slate-50 text-slate-700 font-medium' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                      {m.name}
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>
-                  <input type="date" value={newTodoDueDate} onChange={e => setNewTodoDueDate(e.target.value)}
-                    className="input-field" />
-                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>
+                <input type="date" value={newTodoDueDate} onChange={e => setNewTodoDueDate(e.target.value)}
+                  className="input-field" />
               </div>
             </div>
             <div className="flex gap-3 mt-5">
@@ -1043,6 +1129,55 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
               <button onClick={addSidebarTodo} disabled={todoSaving || !newTodoContent.trim()}
                 className="flex-1 py-2 text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-lg disabled:opacity-40 transition-colors">
                 {todoSaving ? 'Saving…' : 'Add Todo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ Edit Todo Modal ════════════════════════════════════ */}
+      {editTodoId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold text-gray-900">Edit Todo</h3>
+              <button onClick={() => setEditTodoId(null)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Task <span className="text-red-500">*</span></label>
+                <textarea value={editTodoContent} onChange={e => setEditTodoContent(e.target.value)}
+                  rows={3} className="input-field resize-none" autoFocus />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Assignee</label>
+                <div className="flex flex-wrap gap-1.5">
+                  <button type="button" onClick={() => setEditTodoAssignee('')}
+                    className={`text-xs px-2.5 py-1 rounded border transition-colors
+                      ${editTodoAssignee === '' ? 'border-slate-500 bg-slate-50 text-slate-700 font-medium' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                    Unassigned
+                  </button>
+                  {members.map(m => (
+                    <button key={m.id} type="button" onClick={() => setEditTodoAssignee(memberInitials(m.name))}
+                      className={`text-xs px-2.5 py-1 rounded border transition-colors
+                        ${editTodoAssignee === memberInitials(m.name) ? 'border-slate-500 bg-slate-50 text-slate-700 font-medium' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                      {m.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>
+                <input type="date" value={editTodoDueDate} onChange={e => setEditTodoDueDate(e.target.value)}
+                  className="input-field" />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditTodoId(null)}
+                className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+              <button onClick={saveEditTodo} disabled={editTodoSaving || !editTodoContent.trim()}
+                className="flex-1 py-2 text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-lg disabled:opacity-40 transition-colors">
+                {editTodoSaving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
