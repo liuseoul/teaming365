@@ -92,7 +92,7 @@ export default function InvoiceView({
   const firmName = group.firm_name_en || group.firm_name_cn || group.name
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <Sidebar profile={profile} groupId={groupId} groupName={group.name} subdomain={subdomain}>
       <style>{`
         @media print {
           .no-print { display: none !important; }
@@ -102,11 +102,7 @@ export default function InvoiceView({
         }
       `}</style>
 
-      <div className="no-print">
-        <Sidebar profile={profile} groupId={groupId} groupName={group.name} subdomain={subdomain} />
-      </div>
-
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-50">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-gray-50">
         {/* Controls (hidden on print) */}
         <div className="no-print flex items-center gap-4 px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
           <h1 className="text-lg font-semibold text-gray-900">Invoice Generator</h1>
@@ -284,6 +280,6 @@ export default function InvoiceView({
           )}
         </div>
       </div>
-    </div>
+    </Sidebar>
   )
 }

@@ -67,6 +67,7 @@ interface SidebarProps {
   groupId: string
   groupName: string
   subdomain: string
+  children?: React.ReactNode
 }
 
 function fmtTime(t: string | null) { return t ? t.slice(0, 5) : '' }
@@ -316,7 +317,7 @@ function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, 
   )
 }
 
-export default function Sidebar({ profile, groupId, groupName, subdomain }: SidebarProps) {
+export default function Sidebar({ profile, groupId, groupName, subdomain, children }: SidebarProps) {
   const router   = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
@@ -378,6 +379,10 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
   const [groupTimeLogs,  setGroupTimeLogs]  = useState<any[]>([])
   const [groupTodos,     setGroupTodos]     = useState<any[]>([])
 
+  const [showUserMenu,          setShowUserMenu]          = useState(false)
+  const [sidebarTodos,          setSidebarTodos]          = useState<any[]>([])
+  const [displaySidebarTodos,   setDisplaySidebarTodos]   = useState<any[]>([])
+
   // range-mode additions
   const [personalMode,       setPersonalMode]       = useState<'single' | 'range'>('single')
   const [personalRangeStart, setPersonalRangeStart] = useState(new Date().toISOString().split('T')[0].slice(0, 7) + '-01')
@@ -392,7 +397,44 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
     if (uid) loadMyGroups(uid)
     loadReminders()
     loadMembers()
+    loadSidebarTodos()
   }, [groupId])
+
+  useEffect(() => {
+    setDisplaySidebarTodos(sidebarTodos.map((t: any) => ({
+      ...t,
+      content: decField(t.content, groupKey) || t.content,
+    })))
+  }, [sidebarTodos, groupKey])
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    if (!showUserMenu) return
+    function handler() { setShowUserMenu(false) }
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [showUserMenu])
+
+  async function loadSidebarTodos() {
+    const { data } = await supabase
+      .from('todos')
+      .select('id, content, assignee_abbrev, due_date')
+      .eq('group_id', groupId)
+      .eq('completed', false)
+      .eq('deleted', false)
+      .order('created_at', { ascending: false })
+      .limit(30)
+    setSidebarTodos(data || [])
+  }
+
+  async function completeSidebarTodo(id: string) {
+    await supabase.from('todos').update({
+      completed: true,
+      completed_at: new Date().toISOString(),
+      completed_by_name: profile?.name || '',
+    }).eq('id', id).eq('group_id', groupId)
+    setSidebarTodos(prev => prev.filter((t: any) => t.id !== id))
+  }
 
   async function loadReminders() {
     const { data, error } = await supabase
@@ -769,83 +811,162 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
 
   return (
     <>
-      <div className="w-56 bg-white border-r border-gray-200 text-gray-900 flex flex-col h-full flex-shrink-0">
+      <div className="flex flex-col h-screen overflow-hidden">
 
-        {/* Logo + group name */}
-        <div className="px-5 py-5 border-b border-gray-200 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center text-sm font-bold text-white flex-shrink-0">Q</div>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-gray-900 leading-tight truncate">{groupName}</div>
+        {/* ── TOP NAVIGATION BAR ──────────────────────────────── */}
+        <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-2 flex-shrink-0 z-20 no-print">
+
+          {/* Logo */}
+          <div className="flex items-center gap-2.5 mr-4 flex-shrink-0">
+            <div className="w-7 h-7 bg-teal-600 rounded-lg flex items-center justify-center text-xs font-bold text-white">Q</div>
+            <div className="min-w-0 hidden sm:block">
+              <div className="text-sm font-semibold text-gray-900 leading-none truncate max-w-32">{groupName}</div>
               <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-0.5">
-                团队<span className="font-black text-amber-500" style={{fontVariantNumeric:'oldstyle-nums'}}>365</span>
+                团队<span className="font-black text-amber-500">365</span>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Navigation */}
-        <nav className="px-3 py-3 space-y-1 border-b border-gray-200 flex-shrink-0 overflow-y-auto">
-          {[
-            { href: `/${subdomain}/dashboard`,  label: 'Today',     icon: '🗓️' },
-            { href: `/${subdomain}/projects`,   label: 'Matters',   icon: '📋' },
-            ...(isAdmin ? [
-              { href: `/${subdomain}/admin`,     label: 'Admin',     icon: '⚙️' },
-              { href: `/${subdomain}/invoice`,   label: 'Invoice',   icon: '🧾' },
-              { href: `/${subdomain}/analytics`, label: 'Analytics', icon: '📊' },
-            ] : []),
-          ].map(item => (
-            <button key={item.href} onClick={() => router.push(item.href)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors duration-150 text-left
-                ${pathname === item.href ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
-              <span className="text-base">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-
-          <button
-            onClick={() => { setShowPersonalStats(true); setPersonalRecords([]); setPersonalTimeLogs([]); setPersonalTodos([]); setPersonalQueried(false) }}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-150 text-left">
-            <span className="text-base">📊</span><span>My Stats</span>
-          </button>
-
-          {isAdmin && (
-            <button
-              onClick={() => { setShowGroupStats(true); setGroupRecords([]); setGroupTimeLogs([]); setGroupTodos([]); setGroupQueried(false) }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-150 text-left">
-              <span className="text-base">📊</span><span>Team Stats</span>
-            </button>
-          )}
-
-          {/* Switch team button — only if user belongs to multiple */}
-          {myGroups.length > 1 && (
-            <button
-              onClick={() => setShowGroupPicker(true)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-150 text-left">
-              <span className="text-base">🔀</span><span>Switch team</span>
-            </button>
-          )}
-        </nav>
-
-        {/* Schedule */}
-        <div className="flex-1 min-h-0 flex flex-col">
-          <div className="flex items-center justify-between px-3 pt-3 pb-2 flex-shrink-0">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Schedule</span>
-            <div className="flex items-center gap-1.5">
-              {upcoming.length > 0 && (
-                <button onClick={() => setShowAllRem(true)}
-                  className="text-xs text-gray-500 hover:text-teal-600 px-2 py-0.5 rounded border border-gray-300 hover:border-teal-400 transition-colors">
-                  View all
-                </button>
-              )}
-              <button onClick={() => setShowAddRem(true)}
-                className="text-xs text-gray-500 hover:text-teal-600 px-2 py-0.5 rounded border border-gray-300 hover:border-teal-400 transition-colors">
-                + Add
+          {/* Page nav links */}
+          <nav className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto">
+            {[
+              { href: `/${subdomain}/dashboard`, label: 'Today',     icon: '🗓️' },
+              { href: `/${subdomain}/projects`,  label: 'Matters',   icon: '📋' },
+              ...(isAdmin ? [
+                { href: `/${subdomain}/admin`,     label: 'Admin',     icon: '⚙️' },
+                { href: `/${subdomain}/invoice`,   label: 'Invoice',   icon: '🧾' },
+                { href: `/${subdomain}/analytics`, label: 'Analytics', icon: '📊' },
+              ] : []),
+            ].map(item => (
+              <button key={item.href} onClick={() => router.push(item.href)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0
+                  ${pathname === item.href ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                <span className="text-base leading-none">{item.icon}</span>
+                <span className="hidden md:inline">{item.label}</span>
               </button>
+            ))}
+          </nav>
+
+          {/* Right side: stats + user */}
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={() => { setShowPersonalStats(true); setPersonalRecords([]); setPersonalTimeLogs([]); setPersonalTodos([]); setPersonalQueried(false) }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors">
+              <span>📊</span><span className="hidden xl:inline text-xs">My Stats</span>
+            </button>
+            {isAdmin && (
+              <button
+                onClick={() => { setShowGroupStats(true); setGroupRecords([]); setGroupTimeLogs([]); setGroupTodos([]); setGroupQueried(false) }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors">
+                <span>👥</span><span className="hidden xl:inline text-xs">Team</span>
+              </button>
+            )}
+            {myGroups.length > 1 && (
+              <button onClick={() => setShowGroupPicker(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors">
+                <span>🔀</span><span className="hidden xl:inline text-xs">Switch</span>
+              </button>
+            )}
+            {/* User avatar + dropdown */}
+            <div className="relative ml-1">
+              <button onClick={e => { e.stopPropagation(); setShowUserMenu(v => !v) }}
+                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                <div className="w-7 h-7 bg-teal-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                  {(profile?.name || 'U').charAt(0).toUpperCase()}
+                </div>
+                <span className="text-sm font-medium text-gray-700 hidden sm:inline max-w-28 truncate">{profile?.name}</span>
+                <span className="text-gray-400 text-[10px]">▾</span>
+              </button>
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50">
+                  <div className="px-4 py-2.5 border-b border-gray-100">
+                    <div className="text-sm font-semibold text-gray-900">{profile?.name}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {profile?.role === 'first_admin' ? 'Primary Admin'
+                        : profile?.role === 'second_admin' ? 'Secondary Admin' : 'Member'}
+                    </div>
+                  </div>
+                  <button onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                    <span>🚪</span><span>Sign out</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
+        </header>
 
-          <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1">
+        {/* ── BODY ─────────────────────────────────────────────── */}
+        <div className="flex flex-1 min-h-0">
+
+          {/* Main content (injected by page) */}
+          <div className="flex-1 min-w-0 overflow-hidden">
+            {children}
+          </div>
+
+          {/* ── RIGHT PANEL ──────────────────────────────────── */}
+          <div className="w-72 bg-white border-l border-gray-200 flex flex-col flex-shrink-0 no-print">
+
+            {/* ── TODOS ──────────────────────────────────────── */}
+            <div className="flex-shrink-0">
+              <div className="flex items-center justify-between px-3 pt-3 pb-2">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">📝 Todos</span>
+                {displaySidebarTodos.length > 0 && (
+                  <span className="text-[10px] text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-full font-semibold">
+                    {displaySidebarTodos.length} open
+                  </span>
+                )}
+              </div>
+              <div className="px-2 pb-2 space-y-0.5 max-h-56 overflow-y-auto">
+                {displaySidebarTodos.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-3">All done ✓</p>
+                ) : displaySidebarTodos.map((todo: any) => (
+                  <div key={todo.id}
+                    className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 group transition-colors">
+                    <button
+                      onClick={() => completeSidebarTodo(todo.id)}
+                      className="w-4 h-4 rounded border-2 border-gray-300 group-hover:border-teal-400 hover:!border-teal-500 hover:bg-teal-50 flex-shrink-0 mt-0.5 transition-colors"
+                      title="Mark complete" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-gray-800 leading-snug line-clamp-2">{todo.content}</div>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        {todo.assignee_abbrev && (
+                          <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 px-1 rounded">{todo.assignee_abbrev}</span>
+                        )}
+                        {todo.due_date && (
+                          <span className={`text-[10px] font-medium ${todo.due_date < todayStr ? 'text-red-500' : 'text-gray-400'}`}>
+                            {todo.due_date.slice(5, 7)}/{todo.due_date.slice(8, 10)}
+                            {todo.due_date < todayStr ? ' ⚠️' : ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-gray-200 mx-3 flex-shrink-0" />
+
+            {/* ── SCHEDULE ───────────────────────────────────── */}
+            <div className="flex-1 min-h-0 flex flex-col">
+              <div className="flex items-center justify-between px-3 pt-3 pb-2 flex-shrink-0">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">📅 Schedule</span>
+                <div className="flex items-center gap-1.5">
+                  {upcoming.length > 0 && (
+                    <button onClick={() => setShowAllRem(true)}
+                      className="text-xs text-gray-500 hover:text-teal-600 px-2 py-0.5 rounded border border-gray-300 hover:border-teal-400 transition-colors">
+                      View all
+                    </button>
+                  )}
+                  <button onClick={() => setShowAddRem(true)}
+                    className="text-xs text-gray-500 hover:text-teal-600 px-2 py-0.5 rounded border border-gray-300 hover:border-teal-400 transition-colors">
+                    + Add
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1">
 
             {/* Feature 15 — Pre-alerts firing today */}
             {(() => {
@@ -967,22 +1088,9 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
           </div>
         </div>
 
-        {/* User info & logout */}
-        <div className="px-3 py-4 border-t border-gray-200 flex-shrink-0">
-          <div className="px-3 py-2 mb-1">
-            <div className="text-sm font-medium text-gray-900 truncate">{profile?.name || 'User'}</div>
-            <div className="text-xs text-gray-400 mt-0.5">
-              {profile?.role === 'first_admin' ? 'Primary Admin'
-                : profile?.role === 'second_admin' ? 'Secondary Admin'
-                : 'Member'}
-            </div>
-          </div>
-          <button onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors duration-150">
-            <span>🚪</span><span>Sign out</span>
-          </button>
-        </div>
-      </div>
+          </div>{/* end right panel */}
+        </div>{/* end body */}
+      </div>{/* end app shell */}
 
       {/* ══ Switch Group Modal ══════════════════════════════════ */}
       {showGroupPicker && (
