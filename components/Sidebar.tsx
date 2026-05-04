@@ -602,7 +602,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
           </div>
 
           {/* ── RIGHT PANEL ──────────────────────────────────── */}
-          <div className="w-72 bg-gray-50 border-l border-gray-200 flex flex-col flex-shrink-0 no-print">
+          <div className="w-[36rem] bg-gray-50 border-l border-gray-200 flex flex-col flex-shrink-0 no-print">
 
             {/* ── TODOS ──────────────────────────────────────── */}
             <div className="flex-shrink-0 bg-white border-b border-gray-200">
