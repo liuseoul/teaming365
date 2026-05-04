@@ -504,76 +504,15 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
         {/* ── TOP NAVIGATION BAR ──────────────────────────────── */}
         <header className="bg-white border-b border-gray-200 flex-shrink-0 z-20 no-print">
 
-          {/* ── Row 1: Logo + right actions ── */}
-          <div className="flex items-center px-4 h-11 gap-3 border-b border-gray-100">
-            {/* Logo */}
-            <div className="flex items-center gap-2.5 flex-shrink-0">
-              <div className="w-7 h-7 bg-slate-800 rounded-md flex items-center justify-center text-xs font-bold text-white">Q</div>
-              <div className="min-w-0 hidden sm:block">
-                <div className="text-sm font-semibold text-gray-900 leading-none truncate max-w-36">{groupName}</div>
-                <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-0.5">
-                  团队<span className="font-black text-slate-600">365</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1" />
-
-            {/* Right actions */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              {myGroups.length > 1 && (
-                <button onClick={() => setShowGroupPicker(true)}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors border border-gray-200">
-                  🔀 <span className="hidden lg:inline">Switch</span>
-                </button>
-              )}
-              {isAdmin && (
-                <button onClick={() => router.push(`/${subdomain}/admin`)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border transition-colors
-                    ${pathname === `/${subdomain}/admin`
-                      ? 'bg-slate-800 text-white border-slate-800'
-                      : 'text-slate-700 border-slate-300 hover:bg-slate-800 hover:text-white hover:border-slate-800'}`}>
-                  ⚙️ Admin
-                </button>
-              )}
-              {/* User avatar + dropdown */}
-              <div className="relative">
-                <button onClick={e => { e.stopPropagation(); setShowUserMenu(v => !v) }}
-                  className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded hover:bg-gray-100 transition-colors">
-                  <div className="w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
-                    {(profile?.name || 'U').charAt(0).toUpperCase()}
-                  </div>
-                  <span className="text-xs font-medium text-gray-700 hidden sm:inline max-w-24 truncate">{profile?.name}</span>
-                  <span className="text-gray-400 text-[9px]">▾</span>
-                </button>
-                {showUserMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-50">
-                    <div className="px-4 py-3 border-b border-gray-100">
-                      <div className="text-sm font-semibold text-gray-900">{profile?.name}</div>
-                      <div className="text-xs text-gray-400 mt-0.5">
-                        {profile?.role === 'first_admin' ? 'Primary Admin'
-                          : profile?.role === 'second_admin' ? 'Secondary Admin' : 'Member'}
-                      </div>
-                    </div>
-                    <button onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors">
-                      <span>🚪</span><span>Sign out</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Row 2: Folder-tab navigation ── */}
+          {/* ── Single row: tabs + admin tab + avatar ── */}
           <div className="flex items-end px-3 gap-0.5 overflow-x-auto">
             {[
-              { href: `/${subdomain}/dashboard`, label: 'Today',     icon: '🗓️' },
-              { href: `/${subdomain}/projects`,  label: 'Matters',   icon: '📋' },
-              { href: `/${subdomain}/analytics`, label: 'Analytics', icon: '📊', adminOnly: true },
-              { href: `/${subdomain}/invoice`,   label: 'Invoice',   icon: '🧾', adminOnly: true },
-              { href: `/${subdomain}/my-stats`,   label: 'My Stats',   icon: '📈' },
-              { href: `/${subdomain}/team-stats`, label: 'Team Stats', icon: '👥', adminOnly: true },
+              { href: `/${subdomain}/dashboard`, label: 'Today',      icon: '🗓️' },
+              { href: `/${subdomain}/projects`,  label: 'Matters',    icon: '📋' },
+              { href: `/${subdomain}/analytics`, label: 'Analytics',  icon: '📊', adminOnly: true },
+              { href: `/${subdomain}/invoice`,   label: 'Invoice',    icon: '🧾', adminOnly: true },
+              { href: `/${subdomain}/my-stats`,  label: 'My Stats',   icon: '📈' },
+              { href: `/${subdomain}/team-stats`,label: 'Team Stats', icon: '👥', adminOnly: true },
             ]
               .filter(item => !item.adminOnly || isAdmin)
               .map(item => {
@@ -590,6 +529,55 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                   </button>
                 )
               })}
+
+            {/* Admin tab — same folder-tab style */}
+            {isAdmin && (
+              <button onClick={() => router.push(`/${subdomain}/admin`)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-t-md border whitespace-nowrap flex-shrink-0 transition-all
+                  ${pathname === `/${subdomain}/admin`
+                    ? 'bg-white border-gray-300 border-b-0 text-slate-900 font-semibold -mb-px z-10 shadow-sm'
+                    : 'bg-slate-50 border-transparent text-gray-500 hover:bg-white hover:text-slate-800 hover:border-gray-200 hover:border-b-0 hover:-mb-px'}`}>
+                <span className="text-sm leading-none">⚙️</span>
+                <span>Admin</span>
+              </button>
+            )}
+
+            <div className="flex-1" />
+
+            {/* Group switcher */}
+            {myGroups.length > 1 && (
+              <button onClick={() => setShowGroupPicker(true)}
+                className="flex items-center gap-1 px-2 py-1.5 mb-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors border border-gray-200 flex-shrink-0 self-center">
+                🔀 <span className="hidden lg:inline">Switch</span>
+              </button>
+            )}
+
+            {/* User avatar + dropdown */}
+            <div className="relative self-center mb-1 flex-shrink-0">
+              <button onClick={e => { e.stopPropagation(); setShowUserMenu(v => !v) }}
+                className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded hover:bg-gray-100 transition-colors">
+                <div className="w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                  {(profile?.name || 'U').charAt(0).toUpperCase()}
+                </div>
+                <span className="text-xs font-medium text-gray-700 hidden sm:inline max-w-24 truncate">{profile?.name}</span>
+                <span className="text-gray-400 text-[9px]">▾</span>
+              </button>
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <div className="text-sm font-semibold text-gray-900">{profile?.name}</div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {profile?.role === 'first_admin' ? 'Primary Admin'
+                        : profile?.role === 'second_admin' ? 'Secondary Admin' : 'Member'}
+                    </div>
+                  </div>
+                  <button onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors">
+                    <span>🚪</span><span>Sign out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -605,8 +593,8 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
           <div className="w-[36rem] bg-gray-50 border-l border-gray-200 flex flex-col flex-shrink-0 no-print">
 
             {/* ── TODOS ──────────────────────────────────────── */}
-            <div className="flex-shrink-0 bg-white border-b border-gray-200">
-              <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+            <div className="flex-1 min-h-0 flex flex-col bg-white border-b border-gray-200">
+              <div className="flex items-center gap-2 px-3 pt-3 pb-2 flex-shrink-0">
                 <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex-1">📝 Todos</span>
                 {displaySidebarTodos.length > 0 && (
                   <span className="text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">
@@ -622,7 +610,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                   + Add
                 </button>
               </div>
-              <div className="px-2 pb-2 space-y-0.5 max-h-52 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto pb-2 space-y-0.5 w-4/5 mx-auto">
                 {displaySidebarTodos.length === 0 ? (
                   <p className="text-xs text-gray-400 text-center py-3">All clear ✓</p>
                 ) : displaySidebarTodos.slice(0, 8).map((todo: any) => (
