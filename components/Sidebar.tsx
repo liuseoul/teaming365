@@ -577,10 +577,10 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
             ]
               .filter(item => !item.adminOnly || isAdmin)
               .map(item => {
-                const isActive = item.href ? pathname === item.href : false
+                const isActive = pathname === item.href
                 return (
                   <button key={item.label}
-                    onClick={() => item.onClick ? item.onClick() : item.href && router.push(item.href)}
+                    onClick={() => router.push(item.href)}
                     className={`flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-t-md border whitespace-nowrap flex-shrink-0 transition-all
                       ${isActive
                         ? 'bg-white border-gray-300 border-b-0 text-slate-900 font-semibold -mb-px z-10 shadow-sm'
