@@ -365,76 +365,60 @@ export default function ProjectList({
   return (
     <Sidebar profile={profile} groupId={groupId} groupName={groupName} subdomain={subdomain}>
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Top bar */}
-        <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-          <h1 className="text-base font-semibold text-gray-900">Matters</h1>
-          {isAdmin && (
-            <button
-              onClick={() => router.push(`/${subdomain}/admin`)}
-              className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white
-                         text-sm font-medium px-4 py-2 rounded-lg transition-colors duration-150"
-            >
-              <span className="text-base leading-none">+</span>
-              <span>New matter</span>
+        {/* ── Unified toolbar ── */}
+        <div className="bg-white border-b border-gray-200 flex-shrink-0">
+          <div className="flex items-center gap-2 px-4 py-2.5 flex-wrap">
+            {/* Status filter pills */}
+            <div className="flex items-center gap-1 flex-wrap">
+              {STATUS_ORDER.map(key => (
+                <button key={key} onClick={() => setFilter(key)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border
+                    ${filter === key
+                      ? 'bg-slate-800 text-white border-slate-800'
+                      : 'text-gray-600 border-gray-200 hover:border-slate-400 hover:text-slate-800'}`}>
+                  {STATUS_LABELS[key]}
+                  {key !== 'all' && (
+                    <span className="ml-1 opacity-60">{projects.filter((p: any) => p.status === key).length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
+
+            {/* Action buttons */}
+            <button onClick={() => { setStatsStart(''); setStatsEnd(''); setShowProjStats(true) }}
+              className="px-3 py-1 rounded-full text-xs font-medium border border-gray-200 text-gray-600 hover:border-slate-400 hover:text-slate-800 transition-colors">
+              Stats
+            </button>
+            <button onClick={() => { setWeeklyData(null); setShowWeeklySummary(true) }}
+              className="px-3 py-1 rounded-full text-xs font-medium border border-gray-200 text-gray-600 hover:border-slate-400 hover:text-slate-800 transition-colors">
+              This Week
+            </button>
+            <button onClick={() => { setPendingSortMode(sortMode); setShowSortModal(true) }}
+              className="px-3 py-1 rounded-full text-xs font-medium border border-gray-200 text-gray-600 hover:border-slate-400 hover:text-slate-800 transition-colors">
+              Sort
+            </button>
+
+            <span className="text-xs text-gray-400 ml-auto">{projects.length}</span>
+
+            {isAdmin && (
+              <button onClick={() => router.push(`/${subdomain}/admin`)}
+                className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-white hover:bg-slate-700 transition-colors">
+                <span>+</span><span>New matter</span>
+              </button>
+            )}
+          </div>
+
+          {/* Due-today strip */}
+          {todayCount > 0 && (
+            <button onClick={() => setShowTodayModal(true)}
+              className="w-full text-xs text-amber-700 bg-amber-50 border-t border-amber-200 px-4 py-1.5 text-left hover:bg-amber-100 transition-colors">
+              Today &middot; {todayTodos.length > 0 && `${todayTodos.length} todo${todayTodos.length > 1 ? 's' : ''} due`}
+              {todayTodos.length > 0 && todayReminders.length > 0 && ' · '}
+              {todayReminders.length > 0 && `${todayReminders.length} event${todayReminders.length > 1 ? 's' : ''}`}
             </button>
           )}
-        </div>
-
-        {/* Due-today strip */}
-        {todayCount > 0 && (
-          <button
-            onClick={() => setShowTodayModal(true)}
-            className="text-xs text-amber-700 bg-amber-50 border-b border-amber-200 px-6 py-2 text-left hover:bg-amber-100 transition-colors flex-shrink-0"
-          >
-            Today &middot; {todayTodos.length > 0 && `${todayTodos.length} todo${todayTodos.length > 1 ? 's' : ''} due`}
-            {todayTodos.length > 0 && todayReminders.length > 0 && ' · '}
-            {todayReminders.length > 0 && `${todayReminders.length} event${todayReminders.length > 1 ? 's' : ''}`}
-          </button>
-        )}
-
-        {/* Status filter */}
-        <div className="flex items-center gap-2 px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0 flex-wrap">
-          {STATUS_ORDER.map(key => (
-            <button key={key} onClick={() => setFilter(key)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-150
-                ${filter === key ? 'bg-teal-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}>
-              {STATUS_LABELS[key]}
-              {key !== 'all' && (
-                <span className="ml-1.5 text-xs opacity-70">
-                  {projects.filter((p: any) => p.status === key).length}
-                </span>
-              )}
-            </button>
-          ))}
-
-          {/* Stats button */}
-          <button
-            onClick={() => { setStatsStart(''); setStatsEnd(''); setShowProjStats(true) }}
-            className="px-4 py-1.5 rounded-full text-sm font-medium bg-teal-500 text-white
-                       hover:bg-teal-600 transition-colors duration-150"
-          >
-            Stats
-          </button>
-
-          {/* This Week button */}
-          <button
-            onClick={() => { setWeeklyData(null); setShowWeeklySummary(true) }}
-            className="px-4 py-1.5 rounded-full text-sm font-medium bg-indigo-500 text-white
-                       hover:bg-indigo-600 transition-colors duration-150"
-          >
-            This Week
-          </button>
-
-          {/* Sort button */}
-          <button
-            onClick={() => { setPendingSortMode(sortMode); setShowSortModal(true) }}
-            className="px-4 py-1.5 rounded-full text-sm font-medium border border-gray-300 text-gray-600
-                       hover:bg-gray-50 transition-colors duration-150"
-          >
-            Sort
-          </button>
-
-          <span className="ml-auto text-xs text-gray-400">{projects.length} records</span>
         </div>
 
         {/* Matter list */}

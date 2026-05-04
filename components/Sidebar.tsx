@@ -382,6 +382,12 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
   const [showUserMenu,          setShowUserMenu]          = useState(false)
   const [sidebarTodos,          setSidebarTodos]          = useState<any[]>([])
   const [displaySidebarTodos,   setDisplaySidebarTodos]   = useState<any[]>([])
+  const [showAllTodos,          setShowAllTodos]          = useState(false)
+  const [showAddTodo,           setShowAddTodo]           = useState(false)
+  const [newTodoContent,        setNewTodoContent]        = useState('')
+  const [newTodoAssignee,       setNewTodoAssignee]       = useState('')
+  const [newTodoDueDate,        setNewTodoDueDate]        = useState('')
+  const [todoSaving,            setTodoSaving]            = useState(false)
 
   // range-mode additions
   const [personalMode,       setPersonalMode]       = useState<'single' | 'range'>('single')
@@ -414,6 +420,23 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
     document.addEventListener('click', handler)
     return () => document.removeEventListener('click', handler)
   }, [showUserMenu])
+
+  async function addSidebarTodo() {
+    if (!newTodoContent.trim()) return
+    setTodoSaving(true)
+    const { error } = await supabase.from('todos').insert({
+      content: encField(newTodoContent.trim(), groupKey) ?? newTodoContent.trim(),
+      assignee_abbrev: newTodoAssignee.trim() || null,
+      due_date: newTodoDueDate || null,
+      group_id: groupId,
+      completed: false,
+      deleted: false,
+    })
+    setTodoSaving(false)
+    if (error) { alert('Failed: ' + error.message); return }
+    setShowAddTodo(false); setNewTodoContent(''); setNewTodoAssignee(''); setNewTodoDueDate('')
+    await loadSidebarTodos()
+  }
 
   async function loadSidebarTodos() {
     const { data } = await supabase
@@ -814,85 +837,94 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
       <div className="flex flex-col h-screen overflow-hidden">
 
         {/* ── TOP NAVIGATION BAR ──────────────────────────────── */}
-        <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-2 flex-shrink-0 z-20 no-print">
+        <header className="bg-white border-b border-gray-200 flex-shrink-0 z-20 no-print">
 
-          {/* Logo */}
-          <div className="flex items-center gap-2.5 mr-4 flex-shrink-0">
-            <div className="w-7 h-7 bg-teal-600 rounded-lg flex items-center justify-center text-xs font-bold text-white">Q</div>
-            <div className="min-w-0 hidden sm:block">
-              <div className="text-sm font-semibold text-gray-900 leading-none truncate max-w-32">{groupName}</div>
-              <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-0.5">
-                团队<span className="font-black text-amber-500">365</span>
+          {/* ── Row 1: Logo + right actions ── */}
+          <div className="flex items-center px-4 h-11 gap-3 border-b border-gray-100">
+            {/* Logo */}
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              <div className="w-7 h-7 bg-slate-800 rounded-md flex items-center justify-center text-xs font-bold text-white">Q</div>
+              <div className="min-w-0 hidden sm:block">
+                <div className="text-sm font-semibold text-gray-900 leading-none truncate max-w-36">{groupName}</div>
+                <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-0.5">
+                  团队<span className="font-black text-slate-600">365</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1" />
+
+            {/* Right actions */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {myGroups.length > 1 && (
+                <button onClick={() => setShowGroupPicker(true)}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors border border-gray-200">
+                  🔀 <span className="hidden lg:inline">Switch</span>
+                </button>
+              )}
+              {isAdmin && (
+                <button onClick={() => router.push(`/${subdomain}/admin`)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border transition-colors
+                    ${pathname === `/${subdomain}/admin`
+                      ? 'bg-slate-800 text-white border-slate-800'
+                      : 'text-slate-700 border-slate-300 hover:bg-slate-800 hover:text-white hover:border-slate-800'}`}>
+                  ⚙️ Admin
+                </button>
+              )}
+              {/* User avatar + dropdown */}
+              <div className="relative">
+                <button onClick={e => { e.stopPropagation(); setShowUserMenu(v => !v) }}
+                  className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded hover:bg-gray-100 transition-colors">
+                  <div className="w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                    {(profile?.name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-xs font-medium text-gray-700 hidden sm:inline max-w-24 truncate">{profile?.name}</span>
+                  <span className="text-gray-400 text-[9px]">▾</span>
+                </button>
+                {showUserMenu && (
+                  <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-50">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <div className="text-sm font-semibold text-gray-900">{profile?.name}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {profile?.role === 'first_admin' ? 'Primary Admin'
+                          : profile?.role === 'second_admin' ? 'Secondary Admin' : 'Member'}
+                      </div>
+                    </div>
+                    <button onClick={handleLogout}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors">
+                      <span>🚪</span><span>Sign out</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Page nav links */}
-          <nav className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto">
+          {/* ── Row 2: Folder-tab navigation ── */}
+          <div className="flex items-end px-3 gap-0.5 overflow-x-auto">
             {[
               { href: `/${subdomain}/dashboard`, label: 'Today',     icon: '🗓️' },
               { href: `/${subdomain}/projects`,  label: 'Matters',   icon: '📋' },
-              ...(isAdmin ? [
-                { href: `/${subdomain}/admin`,     label: 'Admin',     icon: '⚙️' },
-                { href: `/${subdomain}/invoice`,   label: 'Invoice',   icon: '🧾' },
-                { href: `/${subdomain}/analytics`, label: 'Analytics', icon: '📊' },
-              ] : []),
-            ].map(item => (
-              <button key={item.href} onClick={() => router.push(item.href)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0
-                  ${pathname === item.href ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
-                <span className="text-base leading-none">{item.icon}</span>
-                <span className="hidden md:inline">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-
-          {/* Right side: stats + user */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={() => { setShowPersonalStats(true); setPersonalRecords([]); setPersonalTimeLogs([]); setPersonalTodos([]); setPersonalQueried(false) }}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors">
-              <span>📊</span><span className="hidden xl:inline text-xs">My Stats</span>
-            </button>
-            {isAdmin && (
-              <button
-                onClick={() => { setShowGroupStats(true); setGroupRecords([]); setGroupTimeLogs([]); setGroupTodos([]); setGroupQueried(false) }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors">
-                <span>👥</span><span className="hidden xl:inline text-xs">Team</span>
-              </button>
-            )}
-            {myGroups.length > 1 && (
-              <button onClick={() => setShowGroupPicker(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors">
-                <span>🔀</span><span className="hidden xl:inline text-xs">Switch</span>
-              </button>
-            )}
-            {/* User avatar + dropdown */}
-            <div className="relative ml-1">
-              <button onClick={e => { e.stopPropagation(); setShowUserMenu(v => !v) }}
-                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="w-7 h-7 bg-teal-600 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                  {(profile?.name || 'U').charAt(0).toUpperCase()}
-                </div>
-                <span className="text-sm font-medium text-gray-700 hidden sm:inline max-w-28 truncate">{profile?.name}</span>
-                <span className="text-gray-400 text-[10px]">▾</span>
-              </button>
-              {showUserMenu && (
-                <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50">
-                  <div className="px-4 py-2.5 border-b border-gray-100">
-                    <div className="text-sm font-semibold text-gray-900">{profile?.name}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {profile?.role === 'first_admin' ? 'Primary Admin'
-                        : profile?.role === 'second_admin' ? 'Secondary Admin' : 'Member'}
-                    </div>
-                  </div>
-                  <button onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
-                    <span>🚪</span><span>Sign out</span>
+              { href: `/${subdomain}/analytics`, label: 'Analytics', icon: '📊', adminOnly: true },
+              { href: `/${subdomain}/invoice`,   label: 'Invoice',   icon: '🧾', adminOnly: true },
+              { href: null, label: 'My Stats',   icon: '📈', onClick: () => { setShowPersonalStats(true); setPersonalRecords([]); setPersonalTimeLogs([]); setPersonalTodos([]); setPersonalQueried(false) } },
+              { href: null, label: 'Team Stats', icon: '👥', onClick: () => { setShowGroupStats(true); setGroupRecords([]); setGroupTimeLogs([]); setGroupTodos([]); setGroupQueried(false) }, adminOnly: true },
+            ]
+              .filter(item => !item.adminOnly || isAdmin)
+              .map(item => {
+                const isActive = item.href ? pathname === item.href : false
+                return (
+                  <button key={item.label}
+                    onClick={() => item.onClick ? item.onClick() : item.href && router.push(item.href)}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-t-md border whitespace-nowrap flex-shrink-0 transition-all
+                      ${isActive
+                        ? 'bg-white border-gray-300 border-b-0 text-slate-900 font-semibold -mb-px z-10 shadow-sm'
+                        : 'bg-slate-50 border-transparent text-gray-500 hover:bg-white hover:text-slate-800 hover:border-gray-200 hover:border-b-0 hover:-mb-px'}`}>
+                    <span className="text-sm leading-none">{item.icon}</span>
+                    <span>{item.label}</span>
                   </button>
-                </div>
-              )}
-            </div>
+                )
+              })}
           </div>
         </header>
 
@@ -905,65 +937,73 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
           </div>
 
           {/* ── RIGHT PANEL ──────────────────────────────────── */}
-          <div className="w-72 bg-white border-l border-gray-200 flex flex-col flex-shrink-0 no-print">
+          <div className="w-72 bg-gray-50 border-l border-gray-200 flex flex-col flex-shrink-0 no-print">
 
             {/* ── TODOS ──────────────────────────────────────── */}
-            <div className="flex-shrink-0">
-              <div className="flex items-center justify-between px-3 pt-3 pb-2">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">📝 Todos</span>
+            <div className="flex-shrink-0 bg-white border-b border-gray-200">
+              <div className="flex items-center gap-2 px-3 pt-3 pb-2">
+                <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex-1">📝 Todos</span>
                 {displaySidebarTodos.length > 0 && (
-                  <span className="text-[10px] text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded-full font-semibold">
-                    {displaySidebarTodos.length} open
+                  <span className="text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">
+                    {displaySidebarTodos.length}
                   </span>
                 )}
+                <button onClick={() => setShowAddTodo(true)}
+                  className="text-[10px] font-semibold px-2 py-1 rounded bg-slate-800 text-white hover:bg-slate-700 transition-colors">
+                  + Add
+                </button>
+                <button onClick={() => setShowAllTodos(true)}
+                  className="text-[10px] font-semibold px-2 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
+                  Show All
+                </button>
               </div>
-              <div className="px-2 pb-2 space-y-0.5 max-h-56 overflow-y-auto">
+              <div className="px-2 pb-2 space-y-0.5 max-h-52 overflow-y-auto">
                 {displaySidebarTodos.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-3">All done ✓</p>
-                ) : displaySidebarTodos.map((todo: any) => (
+                  <p className="text-xs text-gray-400 text-center py-3">All clear ✓</p>
+                ) : displaySidebarTodos.slice(0, 8).map((todo: any) => (
                   <div key={todo.id}
-                    className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 group transition-colors">
+                    className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-slate-50 group transition-colors">
                     <button
                       onClick={() => completeSidebarTodo(todo.id)}
-                      className="w-4 h-4 rounded border-2 border-gray-300 group-hover:border-teal-400 hover:!border-teal-500 hover:bg-teal-50 flex-shrink-0 mt-0.5 transition-colors"
+                      className="w-4 h-4 rounded border-2 border-gray-300 group-hover:border-slate-500 flex-shrink-0 mt-0.5 transition-colors"
                       title="Mark complete" />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm text-gray-800 leading-snug line-clamp-2">{todo.content}</div>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         {todo.assignee_abbrev && (
-                          <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 px-1 rounded">{todo.assignee_abbrev}</span>
+                          <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-1 rounded">{todo.assignee_abbrev}</span>
                         )}
                         {todo.due_date && (
-                          <span className={`text-[10px] font-medium ${todo.due_date < todayStr ? 'text-red-500' : 'text-gray-400'}`}>
+                          <span className={`text-[10px] font-medium ${todo.due_date < todayStr ? 'text-rose-600 font-semibold' : 'text-gray-400'}`}>
                             {todo.due_date.slice(5, 7)}/{todo.due_date.slice(8, 10)}
-                            {todo.due_date < todayStr ? ' ⚠️' : ''}
+                            {todo.due_date < todayStr ? ' ⚠' : ''}
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
                 ))}
+                {displaySidebarTodos.length > 8 && (
+                  <button onClick={() => setShowAllTodos(true)}
+                    className="w-full text-[10px] text-indigo-600 hover:text-indigo-800 py-1 text-center font-medium transition-colors">
+                    +{displaySidebarTodos.length - 8} more
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="h-px bg-gray-200 mx-3 flex-shrink-0" />
-
             {/* ── SCHEDULE ───────────────────────────────────── */}
             <div className="flex-1 min-h-0 flex flex-col">
-              <div className="flex items-center justify-between px-3 pt-3 pb-2 flex-shrink-0">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">📅 Schedule</span>
-                <div className="flex items-center gap-1.5">
-                  {upcoming.length > 0 && (
-                    <button onClick={() => setShowAllRem(true)}
-                      className="text-xs text-gray-500 hover:text-teal-600 px-2 py-0.5 rounded border border-gray-300 hover:border-teal-400 transition-colors">
-                      View all
-                    </button>
-                  )}
-                  <button onClick={() => setShowAddRem(true)}
-                    className="text-xs text-gray-500 hover:text-teal-600 px-2 py-0.5 rounded border border-gray-300 hover:border-teal-400 transition-colors">
-                    + Add
-                  </button>
-                </div>
+              <div className="flex items-center gap-2 px-3 pt-3 pb-2 flex-shrink-0">
+                <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex-1">📅 Schedule</span>
+                <button onClick={() => setShowAllRem(true)}
+                  className="text-[10px] font-semibold px-2 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
+                  Show All
+                </button>
+                <button onClick={() => setShowAddRem(true)}
+                  className="text-[10px] font-semibold px-2 py-1 rounded bg-slate-800 text-white hover:bg-slate-700 transition-colors">
+                  + Add
+                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1">
@@ -1437,6 +1477,91 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <StatsTable loading={groupLoading} queried={groupQueried}
                 records={groupRecords} timeLogs={groupTimeLogs} todos={groupTodos} showOperator={true} groupByProject={true} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ Add Todo Modal ══════════════════════════════════════ */}
+      {showAddTodo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-base font-semibold text-gray-900">Add Todo</h3>
+              <button onClick={() => setShowAddTodo(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Task <span className="text-red-500">*</span></label>
+                <textarea value={newTodoContent} onChange={e => setNewTodoContent(e.target.value)}
+                  placeholder="What needs to be done?" rows={3} className="input-field resize-none" autoFocus />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
+                  <input type="text" value={newTodoAssignee} onChange={e => setNewTodoAssignee(e.target.value)}
+                    placeholder="e.g. LW" className="input-field" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>
+                  <input type="date" value={newTodoDueDate} onChange={e => setNewTodoDueDate(e.target.value)}
+                    className="input-field" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => { setShowAddTodo(false); setNewTodoContent(''); setNewTodoAssignee(''); setNewTodoDueDate('') }}
+                className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
+              <button onClick={addSidebarTodo} disabled={todoSaving || !newTodoContent.trim()}
+                className="flex-1 py-2 text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-lg disabled:opacity-40 transition-colors">
+                {todoSaving ? 'Saving…' : 'Add Todo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ Show All Todos Modal ════════════════════════════════ */}
+      {showAllTodos && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">All Open Todos</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{displaySidebarTodos.length} task{displaySidebarTodos.length !== 1 ? 's' : ''} remaining</p>
+              </div>
+              <button onClick={() => setShowAllTodos(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
+              {displaySidebarTodos.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-8">All clear ✓</p>
+              ) : displaySidebarTodos.map((todo: any) => (
+                <div key={todo.id} className="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 group transition-colors border border-transparent hover:border-gray-200">
+                  <button
+                    onClick={async () => { await completeSidebarTodo(todo.id) }}
+                    className="w-4 h-4 rounded border-2 border-gray-300 group-hover:border-slate-500 flex-shrink-0 mt-0.5 transition-colors"
+                    title="Mark complete" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-gray-800 leading-snug">{todo.content}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {todo.assignee_abbrev && (
+                        <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">{todo.assignee_abbrev}</span>
+                      )}
+                      {todo.due_date && (
+                        <span className={`text-[10px] font-medium ${todo.due_date < todayStr ? 'text-rose-600 font-semibold' : 'text-gray-400'}`}>
+                          Due {todo.due_date.slice(5, 7)}/{todo.due_date.slice(8, 10)}{todo.due_date < todayStr ? ' ⚠' : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="px-6 py-3 border-t border-gray-100 flex-shrink-0">
+              <button onClick={() => { setShowAllTodos(false); setShowAddTodo(true) }}
+                className="w-full py-2 text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
+                + Add new todo
+              </button>
             </div>
           </div>
         </div>
