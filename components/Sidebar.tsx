@@ -94,229 +94,6 @@ function reminderUrgencyDot(primaryDate: string, today: string): string {
   return 'bg-teal-400'
 }
 
-function StatsTable({ loading, queried, records, timeLogs, todos, showOperator, groupByProject }: {
-  loading: boolean; queried: boolean
-  records: any[]; timeLogs: any[]; todos: any[]
-  showOperator: boolean
-  groupByProject?: boolean
-}) {
-  if (loading) return <p className="text-sm text-gray-400 text-center py-8">Loading…</p>
-  if (!queried) return <p className="text-sm text-gray-400 text-center py-8">Select a date and click Confirm</p>
-  if (records.length === 0 && timeLogs.length === 0 && todos.length === 0)
-    return <p className="text-sm text-gray-400 text-center py-8">No records for this period</p>
-
-  function durMins(started: string, finished: string | null) {
-    if (!finished) return '—'
-    const m = Math.round((new Date(finished).getTime() - new Date(started).getTime()) / 60000)
-    return m > 0 ? `${m} min` : '—'
-  }
-
-  // Build table rows for records with optional project sub-headers
-  function renderRecordRows() {
-    if (!groupByProject) {
-      return records.map((r: any) => (
-        <tr key={r.id} className="hover:bg-gray-50">
-          <td className="px-2 py-1.5 border border-gray-200 text-gray-600">{r.projects?.name || '—'}</td>
-          <td className="px-2 py-1.5 border border-gray-200 text-gray-800 whitespace-pre-wrap leading-relaxed">{r.content}</td>
-          {showOperator && <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{r.profiles?.name || '—'}</td>}
-        </tr>
-      ))
-    }
-    const rows: React.ReactNode[] = []
-    let lastProjectId: string | null = null
-    records.forEach((r: any) => {
-      const pid = r.projects?.id || null
-      if (pid !== lastProjectId) {
-        lastProjectId = pid
-        const colSpan = showOperator ? 3 : 2
-        rows.push(
-          <tr key={`ph-${pid || 'none'}-${r.id}`} className="bg-teal-50">
-            <td colSpan={colSpan} className="px-2 py-1 border border-gray-200 text-teal-700 font-semibold text-xs">
-              {r.projects?.name || 'Unassigned'}
-            </td>
-          </tr>
-        )
-      }
-      rows.push(
-        <tr key={r.id} className="hover:bg-gray-50">
-          <td className="px-2 py-1.5 border border-gray-200 text-gray-600">{r.projects?.name || '—'}</td>
-          <td className="px-2 py-1.5 border border-gray-200 text-gray-800 whitespace-pre-wrap leading-relaxed">{r.content}</td>
-          {showOperator && <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{r.profiles?.name || '—'}</td>}
-        </tr>
-      )
-    })
-    return rows
-  }
-
-  // Build table rows for time logs with optional project sub-headers
-  function renderTimeLogRows() {
-    if (!groupByProject) {
-      return timeLogs.map((l: any) => {
-        const startStr = new Date(l.started_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-        const endStr   = l.finished_at ? new Date(l.finished_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'
-        return (
-          <tr key={l.id} className="hover:bg-gray-50">
-            <td className="px-2 py-1.5 border border-gray-200 text-gray-600">{l.projects?.name || '—'}</td>
-            <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{startStr}–{endStr}</td>
-            <td className="px-2 py-1.5 border border-gray-200 text-teal-600 font-semibold">{durMins(l.started_at, l.finished_at)}</td>
-            <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{l.description || '—'}</td>
-            {showOperator && <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{l.profiles?.name || '—'}</td>}
-          </tr>
-        )
-      })
-    }
-    const rows: React.ReactNode[] = []
-    let lastProjectId: string | null = null
-    timeLogs.forEach((l: any) => {
-      const pid = l.projects?.id || null
-      if (pid !== lastProjectId) {
-        lastProjectId = pid
-        const colSpan = showOperator ? 5 : 4
-        rows.push(
-          <tr key={`ph-${pid || 'none'}-${l.id}`} className="bg-teal-50">
-            <td colSpan={colSpan} className="px-2 py-1 border border-gray-200 text-teal-700 font-semibold text-xs">
-              {l.projects?.name || 'Unassigned'}
-            </td>
-          </tr>
-        )
-      }
-      const startStr = new Date(l.started_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      const endStr   = l.finished_at ? new Date(l.finished_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'
-      rows.push(
-        <tr key={l.id} className="hover:bg-gray-50">
-          <td className="px-2 py-1.5 border border-gray-200 text-gray-600">{l.projects?.name || '—'}</td>
-          <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{startStr}–{endStr}</td>
-          <td className="px-2 py-1.5 border border-gray-200 text-teal-600 font-semibold">{durMins(l.started_at, l.finished_at)}</td>
-          <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{l.description || '—'}</td>
-          {showOperator && <td className="px-2 py-1.5 border border-gray-200 text-gray-500">{l.profiles?.name || '—'}</td>}
-        </tr>
-      )
-    })
-    return rows
-  }
-
-  // Group todos by completed_by_name for group view
-  function renderTodos() {
-    if (!showOperator) {
-      // Personal view — flat list
-      return (
-        <table className="w-full text-xs border-collapse">
-          <thead>
-            <tr className="bg-gray-50 text-gray-500">
-              <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">Content</th>
-              <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-10">Assignee</th>
-              <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-16">Done at</th>
-            </tr>
-          </thead>
-          <tbody>
-            {todos.map((t: any) => (
-              <tr key={t.id} className="hover:bg-gray-50">
-                <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{t.content}</td>
-                <td className="px-2 py-1.5 border border-gray-200 text-center text-teal-600 font-bold">{t.assignee_abbrev || '—'}</td>
-                <td className="px-2 py-1.5 border border-gray-200 text-gray-500">
-                  {t.completed_at ? new Date(t.completed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )
-    }
-    // Group view — group by completed_by_name
-    const groups: { operator: string; items: any[] }[] = []
-    const seenOps = new Map<string, number>()
-    todos.forEach((t: any) => {
-      const op = t.completed_by_name || '—'
-      if (seenOps.has(op)) {
-        groups[seenOps.get(op)!].items.push(t)
-      } else {
-        seenOps.set(op, groups.length)
-        groups.push({ operator: op, items: [t] })
-      }
-    })
-    return (
-      <div className="space-y-3">
-        {groups.map(({ operator, items }) => (
-          <div key={operator}>
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-xs font-semibold text-gray-700">{operator}</span>
-              <span className="text-xs text-gray-400">({items.length})</span>
-            </div>
-            <table className="w-full text-xs border-collapse">
-              <tbody>
-                {items.map((t: any) => (
-                  <tr key={t.id} className="hover:bg-gray-50">
-                    <td className="px-2 py-1.5 border border-gray-200 text-gray-800">{t.content}</td>
-                    <td className="px-2 py-1.5 border border-gray-200 text-center text-teal-600 font-bold w-10">{t.assignee_abbrev || '—'}</td>
-                    <td className="px-2 py-1.5 border border-gray-200 text-gray-500 w-16">
-                      {t.completed_at ? new Date(t.completed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      {records.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">
-            Work Records <span className="text-gray-400 font-normal">({records.length})</span>
-          </h4>
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500">
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-24">Matter</th>
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">Content</th>
-                {showOperator && <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-14">By</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {renderRecordRows()}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {timeLogs.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">
-            Time Entries <span className="text-gray-400 font-normal">({timeLogs.length})</span>
-          </h4>
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500">
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-24">Matter</th>
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-20">Period</th>
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-16">Duration</th>
-                <th className="text-left px-2 py-1.5 border border-gray-200 font-medium">Content</th>
-                {showOperator && <th className="text-left px-2 py-1.5 border border-gray-200 font-medium w-14">By</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {renderTimeLogRows()}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {todos.length > 0 && (
-        <div>
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">
-            Completed Todos <span className="text-gray-400 font-normal">({todos.length})</span>
-          </h4>
-          {renderTodos()}
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function Sidebar({ profile, groupId, groupName, subdomain, children }: SidebarProps) {
   const router   = useRouter()
   const pathname = usePathname()
@@ -363,22 +140,6 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
   const [editSaving,     setEditSaving]     = useState(false)
   const [showCourtDates, setShowCourtDates] = useState(true)
 
-  const [showPersonalStats,  setShowPersonalStats]  = useState(false)
-  const [personalDate,       setPersonalDate]       = useState(todayStr)
-  const [personalLoading,    setPersonalLoading]    = useState(false)
-  const [personalQueried,    setPersonalQueried]    = useState(false)
-  const [personalRecords,    setPersonalRecords]    = useState<any[]>([])
-  const [personalTimeLogs,   setPersonalTimeLogs]   = useState<any[]>([])
-  const [personalTodos,      setPersonalTodos]      = useState<any[]>([])
-
-  const [showGroupStats, setShowGroupStats] = useState(false)
-  const [groupDate,      setGroupDate]      = useState(todayStr)
-  const [groupLoading,   setGroupLoading]   = useState(false)
-  const [groupQueried,   setGroupQueried]   = useState(false)
-  const [groupRecords,   setGroupRecords]   = useState<any[]>([])
-  const [groupTimeLogs,  setGroupTimeLogs]  = useState<any[]>([])
-  const [groupTodos,     setGroupTodos]     = useState<any[]>([])
-
   const [showUserMenu,          setShowUserMenu]          = useState(false)
   const [sidebarTodos,          setSidebarTodos]          = useState<any[]>([])
   const [displaySidebarTodos,   setDisplaySidebarTodos]   = useState<any[]>([])
@@ -388,14 +149,6 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
   const [newTodoAssignee,       setNewTodoAssignee]       = useState('')
   const [newTodoDueDate,        setNewTodoDueDate]        = useState('')
   const [todoSaving,            setTodoSaving]            = useState(false)
-
-  // range-mode additions
-  const [personalMode,       setPersonalMode]       = useState<'single' | 'range'>('single')
-  const [personalRangeStart, setPersonalRangeStart] = useState(new Date().toISOString().split('T')[0].slice(0, 7) + '-01')
-  const [personalRangeEnd,   setPersonalRangeEnd]   = useState(new Date().toISOString().split('T')[0])
-  const [groupMode,          setGroupMode]          = useState<'single' | 'range'>('single')
-  const [groupRangeStart,    setGroupRangeStart]    = useState(new Date().toISOString().split('T')[0].slice(0, 7) + '-01')
-  const [groupRangeEnd,      setGroupRangeEnd]      = useState(new Date().toISOString().split('T')[0])
 
   useEffect(() => {
     const uid = profile?.id || null
@@ -597,94 +350,6 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
     const { error } = await supabase.from('reminders').delete().eq('id', id).eq('group_id', groupId)
     if (error) { alert('Delete failed: ' + error.message); return }
     closeDetailRem(); await loadReminders()
-  }
-
-  async function loadPersonalStats() {
-    if (!currentUserId) return
-    setPersonalLoading(true); setPersonalQueried(true)
-    const startDay = personalMode === 'range' ? personalRangeStart : personalDate
-    const endDay   = personalMode === 'range' ? personalRangeEnd   : personalDate
-    if (endDay < startDay) { alert('End date cannot be before start date'); setPersonalLoading(false); setPersonalQueried(false); return }
-    const s = `${startDay}T00:00:00.000Z`, e = `${endDay}T23:59:59.999Z`
-    const [{ data: recs }, { data: logs }, { data: tdos }] = await Promise.all([
-      supabase.from('work_records')
-        .select('id, content, created_at, projects(name)')
-        .eq('author_id', currentUserId).eq('deleted', false).eq('group_id', groupId)
-        .gte('created_at', s).lte('created_at', e).order('created_at', { ascending: true }),
-      supabase.from('time_logs')
-        .select('id, started_at, finished_at, description, projects(name)')
-        .eq('member_id', currentUserId).eq('deleted', false).eq('group_id', groupId)
-        .gte('started_at', s).lte('started_at', e).order('started_at', { ascending: true }),
-      supabase.from('todos')
-        .select('id, content, assignee_abbrev, completed_at, completed_by_name')
-        .eq('completed', true).eq('deleted', false).eq('group_id', groupId)
-        .eq('completed_by_name', profile?.name || '')
-        .gte('completed_at', s).lte('completed_at', e).order('completed_at', { ascending: true }),
-    ])
-    setPersonalRecords((recs || []).map((r: any) => ({
-      ...r,
-      content: decField(r.content, groupKey),
-      projects: r.projects ? { ...r.projects, name: decField(r.projects.name, groupKey) } : r.projects,
-    })))
-    setPersonalTimeLogs((logs || []).map((l: any) => ({
-      ...l,
-      description: decField(l.description, groupKey),
-      projects: l.projects ? { ...l.projects, name: decField(l.projects.name, groupKey) } : l.projects,
-    })))
-    setPersonalTodos((tdos || []).map((t: any) => ({ ...t, content: decField(t.content, groupKey) })))
-    setPersonalLoading(false)
-  }
-
-  async function loadGroupStats() {
-    setGroupLoading(true); setGroupQueried(true)
-    const startDay = groupMode === 'range' ? groupRangeStart : groupDate
-    const endDay   = groupMode === 'range' ? groupRangeEnd   : groupDate
-    if (endDay < startDay) { alert('End date cannot be before start date'); setGroupLoading(false); setGroupQueried(false); return }
-    const s = `${startDay}T00:00:00.000Z`, e = `${endDay}T23:59:59.999Z`
-    const [{ data: recs }, { data: logs }, { data: tdos }] = await Promise.all([
-      supabase.from('work_records')
-        .select('id, content, created_at, profiles!work_records_author_id_fkey(name), projects(id, name, created_at)')
-        .eq('deleted', false).eq('group_id', groupId)
-        .gte('created_at', s).lte('created_at', e).order('created_at', { ascending: true }),
-      supabase.from('time_logs')
-        .select('id, started_at, finished_at, description, profiles!time_logs_member_id_fkey(name), projects(id, name, created_at)')
-        .eq('deleted', false).eq('group_id', groupId)
-        .gte('started_at', s).lte('started_at', e).order('started_at', { ascending: true }),
-      supabase.from('todos')
-        .select('id, content, assignee_abbrev, completed_at, completed_by_name')
-        .eq('completed', true).eq('deleted', false).eq('group_id', groupId)
-        .gte('completed_at', s).lte('completed_at', e).order('completed_at', { ascending: true }),
-    ])
-
-    // Sort work records: group by project ordered by project.created_at asc, then by record created_at asc within each project
-    const decRecs = (recs || []).map((r: any) => ({
-      ...r,
-      content: decField(r.content, groupKey),
-      projects: r.projects ? { ...r.projects, name: decField(r.projects.name, groupKey) } : r.projects,
-    }))
-    decRecs.sort((a: any, b: any) => {
-      const aTime = a.projects?.created_at || ''
-      const bTime = b.projects?.created_at || ''
-      if (aTime !== bTime) return aTime.localeCompare(bTime)
-      return (a.created_at || '').localeCompare(b.created_at || '')
-    })
-    setGroupRecords(decRecs)
-
-    // Sort time logs: group by project ordered by project.created_at asc, then by started_at asc within each project
-    const decLogs = (logs || []).map((l: any) => ({
-      ...l,
-      description: decField(l.description, groupKey),
-      projects: l.projects ? { ...l.projects, name: decField(l.projects.name, groupKey) } : l.projects,
-    }))
-    decLogs.sort((a: any, b: any) => {
-      const aTime = a.projects?.created_at || ''
-      const bTime = b.projects?.created_at || ''
-      if (aTime !== bTime) return aTime.localeCompare(bTime)
-      return (a.started_at || '').localeCompare(b.started_at || '')
-    })
-    setGroupTimeLogs(decLogs)
-    setGroupTodos((tdos || []).map((t: any) => ({ ...t, content: decField(t.content, groupKey) })))
-    setGroupLoading(false)
   }
 
   async function handleLogout() {
@@ -907,8 +572,8 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
               { href: `/${subdomain}/projects`,  label: 'Matters',   icon: '📋' },
               { href: `/${subdomain}/analytics`, label: 'Analytics', icon: '📊', adminOnly: true },
               { href: `/${subdomain}/invoice`,   label: 'Invoice',   icon: '🧾', adminOnly: true },
-              { href: null, label: 'My Stats',   icon: '📈', onClick: () => { setShowPersonalStats(true); setPersonalRecords([]); setPersonalTimeLogs([]); setPersonalTodos([]); setPersonalQueried(false) } },
-              { href: null, label: 'Team Stats', icon: '👥', onClick: () => { setShowGroupStats(true); setGroupRecords([]); setGroupTimeLogs([]); setGroupTodos([]); setGroupQueried(false) }, adminOnly: true },
+              { href: `/${subdomain}/my-stats`,   label: 'My Stats',   icon: '📈' },
+              { href: `/${subdomain}/team-stats`, label: 'Team Stats', icon: '👥', adminOnly: true },
             ]
               .filter(item => !item.adminOnly || isAdmin)
               .map(item => {
@@ -948,13 +613,13 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                     {displaySidebarTodos.length}
                   </span>
                 )}
-                <button onClick={() => setShowAddTodo(true)}
-                  className="text-[10px] font-semibold px-2 py-1 rounded bg-slate-800 text-white hover:bg-slate-700 transition-colors">
-                  + Add
-                </button>
                 <button onClick={() => setShowAllTodos(true)}
                   className="text-[10px] font-semibold px-2 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
                   Show All
+                </button>
+                <button onClick={() => setShowAddTodo(true)}
+                  className="text-[10px] font-semibold px-2 py-1 rounded bg-slate-800 text-white hover:bg-slate-700 transition-colors">
+                  + Add
                 </button>
               </div>
               <div className="px-2 pb-2 space-y-0.5 max-h-52 overflow-y-auto">
@@ -1342,70 +1007,6 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
         </div>
       )}
 
-      {/* ══ Personal Daily Stats Modal ══════════════════════════ */}
-      {showPersonalStats && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">My Work Stats</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{profile?.name}</p>
-              </div>
-              <button onClick={() => setShowPersonalStats(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
-            </div>
-            <div className="px-6 py-3 border-b border-gray-100 flex-shrink-0 space-y-3">
-              <div className="flex gap-2">
-                <button onClick={() => { setPersonalMode('single'); setPersonalQueried(false) }}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
-                    ${personalMode === 'single'
-                      ? 'bg-teal-600 text-white border-teal-600'
-                      : 'text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
-                  Single day
-                </button>
-                <button onClick={() => { setPersonalMode('range'); setPersonalQueried(false) }}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
-                    ${personalMode === 'range'
-                      ? 'bg-rose-400 text-white border-rose-400'
-                      : 'bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-100'}`}>
-                  Range
-                </button>
-              </div>
-              <div className="flex items-center gap-3">
-                {personalMode === 'single' ? (
-                  <input type="date" value={personalDate}
-                    onChange={e => { setPersonalDate(e.target.value); setPersonalQueried(false) }}
-                    className="input-field w-44" />
-                ) : (
-                  <>
-                    <input type="date" value={personalRangeStart}
-                      onChange={e => { setPersonalRangeStart(e.target.value); setPersonalQueried(false) }}
-                      className="input-field w-40" />
-                    <span className="text-sm text-gray-400">to</span>
-                    <input type="date" value={personalRangeEnd} min={personalRangeStart}
-                      onChange={e => { setPersonalRangeEnd(e.target.value); setPersonalQueried(false) }}
-                      className="input-field w-40" />
-                  </>
-                )}
-                <button onClick={loadPersonalStats} disabled={personalLoading}
-                  className={`px-5 py-2 text-white text-sm font-medium rounded-lg disabled:bg-gray-200 transition-colors
-                    ${personalMode === 'range'
-                      ? 'bg-rose-400 hover:bg-rose-500'
-                      : 'bg-teal-600 hover:bg-teal-700'}`}>
-                  {personalLoading ? 'Loading…' : 'Confirm'}
-                </button>
-                {personalQueried && !personalLoading && (
-                  <span className="text-xs text-gray-400">{personalRecords.length + personalTimeLogs.length + personalTodos.length} total</span>
-                )}
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              <StatsTable loading={personalLoading} queried={personalQueried}
-                records={personalRecords} timeLogs={personalTimeLogs} todos={personalTodos} showOperator={false} />
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ══ All Upcoming Reminders Modal ════════════════════════ */}
       {showAllRem && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -1416,67 +1017,6 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
               {upcoming.map((r, i) => <ReminderRow key={r.id} r={r} index={i} variant="upcoming" />)}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══ Group Daily Stats Modal (admin) ═════════════════════ */}
-      {showGroupStats && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-base font-semibold text-gray-900">Team Stats</h3>
-              <button onClick={() => setShowGroupStats(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
-            </div>
-            <div className="px-6 py-3 border-b border-gray-100 flex-shrink-0 space-y-3">
-              <div className="flex gap-2">
-                <button onClick={() => { setGroupMode('single'); setGroupQueried(false) }}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
-                    ${groupMode === 'single'
-                      ? 'bg-teal-600 text-white border-teal-600'
-                      : 'text-gray-600 hover:bg-gray-100 border-gray-200'}`}>
-                  Single day
-                </button>
-                <button onClick={() => { setGroupMode('range'); setGroupQueried(false) }}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border
-                    ${groupMode === 'range'
-                      ? 'bg-rose-400 text-white border-rose-400'
-                      : 'bg-rose-50 text-rose-500 border-rose-200 hover:bg-rose-100'}`}>
-                  Range
-                </button>
-              </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                {groupMode === 'single' ? (
-                  <input type="date" value={groupDate}
-                    onChange={e => { setGroupDate(e.target.value); setGroupQueried(false) }}
-                    className="input-field w-44" />
-                ) : (
-                  <>
-                    <input type="date" value={groupRangeStart}
-                      onChange={e => { setGroupRangeStart(e.target.value); setGroupQueried(false) }}
-                      className="input-field w-40" />
-                    <span className="text-sm text-gray-400">to</span>
-                    <input type="date" value={groupRangeEnd} min={groupRangeStart}
-                      onChange={e => { setGroupRangeEnd(e.target.value); setGroupQueried(false) }}
-                      className="input-field w-40" />
-                  </>
-                )}
-                <button onClick={loadGroupStats} disabled={groupLoading}
-                  className={`px-5 py-2 text-white text-sm font-medium rounded-lg disabled:bg-gray-200 transition-colors
-                    ${groupMode === 'range'
-                      ? 'bg-rose-400 hover:bg-rose-500'
-                      : 'bg-teal-600 hover:bg-teal-700'}`}>
-                  {groupLoading ? 'Loading…' : 'Confirm'}
-                </button>
-                {groupQueried && !groupLoading && (
-                  <span className="text-xs text-gray-400">{groupRecords.length + groupTimeLogs.length + groupTodos.length} total</span>
-                )}
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              <StatsTable loading={groupLoading} queried={groupQueried}
-                records={groupRecords} timeLogs={groupTimeLogs} todos={groupTodos} showOperator={true} groupByProject={true} />
             </div>
           </div>
         </div>
