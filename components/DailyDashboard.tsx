@@ -75,12 +75,6 @@ export default function DailyDashboard({
   const groupKey = useGroupKey(profile?.id || null, groupId, keyPair)
 
   // Decrypt project names/clients
-  const decProjects = useMemo(() => activeProjects.map(p => ({
-    ...p,
-    name:   decField(p.name, groupKey),
-    client: decField(p.client, groupKey),
-  })), [activeProjects, groupKey])
-
   // Decrypt reminder contents
   const decTodayReminders = useMemo(() => todayReminders.map(r => ({
     ...r, content: decField(r.content, groupKey),
@@ -321,27 +315,6 @@ export default function DailyDashboard({
                   </Section>
                 )}
 
-                {/* Active matters */}
-                <Section title="Active Matters" badge={decProjects.length} badgeColor="teal">
-                  {decProjects.length === 0 ? (
-                    <p className="text-sm text-gray-400 py-2 text-center">No active matters</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {decProjects.map(p => (
-                        <button
-                          key={p.id}
-                          onClick={() => router.push(`/${subdomain}/projects`)}
-                          className="w-full text-left flex items-center gap-3 py-2 px-2 rounded border border-gray-100 hover:border-teal-200 hover:bg-teal-50/40 bg-white transition-colors">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
-                            <p className="text-xs text-gray-400 truncate">{p.client}</p>
-                          </div>
-                          <span className="text-[10px] px-2 py-0.5 bg-teal-100 text-teal-700 rounded-full flex-shrink-0">Active</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </Section>
               </div>
             </div>
 

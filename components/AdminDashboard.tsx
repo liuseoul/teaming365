@@ -151,7 +151,7 @@ export default function AdminDashboard({
   const [projStatus,     setProjStatus]     = useState('active')
   const [projMatterType, setProjMatterType] = useState('')
   const [projAgreement,  setProjAgreement]  = useState('')
-  const [projCurrency,   setProjCurrency]   = useState('CNY')
+  const [projCurrency,   setProjCurrency]   = useState('')
   const [projAmount,     setProjAmount]     = useState('')
   const [collabParties,  setCollabParties]  = useState([''])
   const [projSaving,    setProjSaving]    = useState(false)
@@ -246,8 +246,8 @@ export default function AdminDashboard({
       setProjMsg('✅ Matter created')
       setProjName(''); setProjClient(''); setProjClientId(''); setProjDesc('')
       setProjStatus('active'); setProjMatterType(''); setProjAgreement('')
-      setProjCurrency('CNY'); setProjAmount(''); setCollabParties([''])
-      setTimeout(() => router.refresh(), 800)
+      setProjCurrency(''); setProjAmount(''); setCollabParties([''])
+      setTimeout(() => router.push(`/${subdomain}/projects`), 800)
     }
     setProjSaving(false)
   }

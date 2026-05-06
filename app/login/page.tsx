@@ -18,7 +18,7 @@ function BrandName({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   )
 }
 
-/* ── Left panel: teamwork illustration ──────────────────────── */
+/* ── Teamwork illustration (kept for potential reuse) ─────────── */
 function TeamIllustration() {
   return (
     <div className="flex flex-col items-center gap-8 select-none">
@@ -92,42 +92,44 @@ function TeamIllustration() {
   )
 }
 
-/* ── Right panel: artistic motto ────────────────────────────── */
-function ArtisticMotto() {
-  const lines = ['Together', 'Like a journey', 'Step by step', 'Share the harvest']
+/* ── Left panel: marketing copy ─────────────────────────────── */
+function MarketingCopy() {
+  const items = [
+    { icon: '⚖️', title: 'Built for legal teams', body: 'Manage matters, track time, and collaborate — all in one place.' },
+    { icon: '🔒', title: 'End-to-end encrypted', body: 'Client data stays private with per-group encryption keys.' },
+    { icon: '📋', title: 'Matter-centric workflow', body: 'Every work record, time entry and todo is tied to a matter.' },
+    { icon: '📊', title: 'Instant work statistics', body: 'Personal and team stats available at a glance, any date range.' },
+    { icon: '🌐', title: 'Your own team URL', body: 'Each firm gets a dedicated subdomain at teaming365.com.' },
+  ]
   return (
-    <div className="flex flex-col items-center gap-1 select-none">
-      {lines.map((line, i) => (
-        <div key={i} className="relative flex items-center gap-3 group">
-          {/* Left accent dot */}
-          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 transition-all duration-500
-            ${i === 0 ? 'bg-amber-400' : i === 3 ? 'bg-teal-400' : 'bg-slate-500 group-hover:bg-slate-300'}`} />
-
-          <span
-            className="text-2xl tracking-[0.15em] font-light transition-all duration-300"
-            style={{
-              color: i === 0 ? '#fbbf24'
-                   : i === 3 ? '#2dd4bf'
-                   : `rgba(255,255,255,${0.55 + i * 0.1})`,
-              textShadow: i === 0 ? '0 0 24px rgba(251,191,36,0.4)'
-                        : i === 3 ? '0 0 24px rgba(45,212,191,0.35)'
-                        : 'none',
-            }}
-          >
-            {line}
-          </span>
-
-          {/* Right accent dot (mirrored) */}
-          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 transition-all duration-500
-            ${i === 0 ? 'bg-amber-400' : i === 3 ? 'bg-teal-400' : 'bg-slate-500 group-hover:bg-slate-300'}`} />
+    <div className="flex flex-col gap-8 select-none max-w-sm">
+      {/* Brand */}
+      <div>
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal-600 mb-4 shadow-lg shadow-teal-900/40">
+          <span className="text-white text-xl font-black">Q</span>
         </div>
-      ))}
+        <h1 className="text-white text-3xl font-semibold mb-1"><BrandName size="lg" /></h1>
+        <p className="text-slate-400 text-sm">Professional team management for law firms</p>
+      </div>
+
+      {/* 5 feature lines */}
+      <div className="flex flex-col gap-4">
+        {items.map((item, i) => (
+          <div key={i} className="flex items-start gap-3">
+            <span className="text-xl flex-shrink-0 mt-0.5">{item.icon}</span>
+            <div>
+              <div className="text-white font-medium text-sm">{item.title}</div>
+              <div className="text-slate-400 text-xs mt-0.5 leading-relaxed">{item.body}</div>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Decorative divider */}
-      <div className="mt-5 flex items-center gap-3 opacity-30">
-        <div className="w-12 h-px bg-white" />
+      <div className="flex items-center gap-3 opacity-20">
+        <div className="flex-1 h-px bg-white" />
         <div className="w-1.5 h-1.5 rounded-full bg-white" />
-        <div className="w-12 h-px bg-white" />
+        <div className="flex-1 h-px bg-white" />
       </div>
     </div>
   )
@@ -718,16 +720,17 @@ export default function LoginPage() {
   /* ── Login form ─────────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 flex items-center justify-center p-6">
-      <div className="w-full max-w-5xl flex items-center justify-center gap-0 lg:gap-12 xl:gap-20">
+      <div className="w-full max-w-5xl flex items-center justify-center gap-0 lg:gap-16 xl:gap-24">
 
-        {/* Left: illustration */}
+        {/* Left: marketing copy */}
         <div className="hidden lg:flex flex-1 items-center justify-center">
-          <TeamIllustration />
+          <MarketingCopy />
         </div>
 
-        {/* Center: login card */}
+        {/* Right: login card */}
         <div className="w-full max-w-sm flex-shrink-0">
-          <div className="text-center mb-8">
+          {/* Mobile-only brand header */}
+          <div className="lg:hidden text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-teal-600 mb-4 shadow-lg shadow-teal-900/50">
               <span className="text-white text-2xl font-black">Q</span>
             </div>
@@ -736,6 +739,10 @@ export default function LoginPage() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-2xl p-8">
+            <div className="mb-6 hidden lg:block">
+              <h2 className="text-gray-900 text-xl font-semibold">Sign in</h2>
+              <p className="text-gray-500 text-sm mt-0.5">Welcome back — enter your details below</p>
+            </div>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -786,11 +793,6 @@ export default function LoginPage() {
           </div>
 
           <p className="text-center text-slate-500 text-xs mt-6">Register and ask your team admin to add you.</p>
-        </div>
-
-        {/* Right: artistic motto */}
-        <div className="hidden lg:flex flex-1 items-center justify-center">
-          <ArtisticMotto />
         </div>
       </div>
     </div>

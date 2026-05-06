@@ -609,7 +609,6 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                   {(profile?.name || 'U').charAt(0).toUpperCase()}
                 </div>
                 <span className="text-xs font-medium text-gray-700 hidden sm:inline max-w-24 truncate">{profile?.name}</span>
-                <span className="text-gray-400 text-[9px]">▾</span>
               </button>
               {showUserMenu && (
                 <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-50">
@@ -668,7 +667,10 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                   const isActive = activeTodoId === todo.id
                   return (
                     <div key={todo.id}
-                      onClick={() => setActiveTodoId(isActive ? null : todo.id)}
+                      onClick={() => {
+                        if (!isAdmin) { handleCompleteTodo(todo.id); return }
+                        setActiveTodoId(isActive ? null : todo.id)
+                      }}
                       className={`flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors ${isActive ? 'bg-slate-100' : 'hover:bg-slate-50'}`}>
                       <button
                         onClick={e => { e.stopPropagation(); handleCompleteTodo(todo.id) }}
@@ -692,7 +694,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                             </span>
                           )}
                         </div>
-                        {isActive && (
+                        {isActive && isAdmin && (
                           <div className="flex gap-1.5 mt-1.5" onClick={e => e.stopPropagation()}>
                             <button onClick={() => openEditTodo(todo)}
                               className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-600 text-white hover:bg-slate-700 transition-colors">

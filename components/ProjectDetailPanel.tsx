@@ -232,6 +232,7 @@ export default function ProjectDetailPanel({
       content:    encField(recordContent.trim(), groupKey) ?? recordContent.trim(),
       author_id:  profile?.id,
       created_at: createdAt,
+      deleted:    false,
     })
     if (error) { alert('Save failed: ' + error.message); setSavingRecord(false); return }
     await loadRecords()
@@ -341,15 +342,13 @@ export default function ProjectDetailPanel({
           )}
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-2">
-          {isAdmin && (
-            <button
-              onClick={openEditProject}
-              className="text-[11px] text-gray-400 hover:text-teal-600 border border-gray-200
-                         hover:border-teal-400 rounded px-1.5 py-0.5 transition-colors leading-none"
-            >
-              Edit
-            </button>
-          )}
+          <button
+            onClick={openEditProject}
+            className="text-[11px] text-gray-400 hover:text-teal-600 border border-gray-200
+                       hover:border-teal-400 rounded px-1.5 py-0.5 transition-colors leading-none"
+          >
+            Edit
+          </button>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">✕</button>
         </div>
       </div>

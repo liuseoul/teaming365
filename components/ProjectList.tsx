@@ -21,6 +21,50 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_ORDER = ['all', 'active', 'pending', 'completed', 'cancelled', 'delayed', 'archived']
 
+// Active pill style (selected)
+const STATUS_PILL_ACTIVE: Record<string, string> = {
+  all:       'bg-slate-700 text-white border-slate-700',
+  active:    'bg-teal-600 text-white border-teal-600',
+  pending:   'bg-amber-500 text-white border-amber-500',
+  completed: 'bg-blue-600 text-white border-blue-600',
+  cancelled: 'bg-red-500 text-white border-red-500',
+  delayed:   'bg-orange-500 text-white border-orange-500',
+  archived:  'bg-purple-600 text-white border-purple-600',
+}
+
+// Inactive pill hover style
+const STATUS_PILL_INACTIVE: Record<string, string> = {
+  all:       'text-slate-600 border-gray-200 hover:border-slate-400 hover:text-slate-800',
+  active:    'text-teal-700 border-gray-200 hover:border-teal-400 hover:text-teal-800',
+  pending:   'text-amber-700 border-gray-200 hover:border-amber-400 hover:text-amber-800',
+  completed: 'text-blue-700 border-gray-200 hover:border-blue-400 hover:text-blue-800',
+  cancelled: 'text-red-600 border-gray-200 hover:border-red-400 hover:text-red-700',
+  delayed:   'text-orange-600 border-gray-200 hover:border-orange-400 hover:text-orange-700',
+  archived:  'text-purple-700 border-gray-200 hover:border-purple-400 hover:text-purple-800',
+}
+
+// Main content area tint when filter is active
+const STATUS_BG: Record<string, string> = {
+  all:       'bg-gray-50',
+  active:    'bg-teal-50/40',
+  pending:   'bg-amber-50/40',
+  completed: 'bg-blue-50/40',
+  cancelled: 'bg-red-50/30',
+  delayed:   'bg-orange-50/30',
+  archived:  'bg-purple-50/30',
+}
+
+// Row alternating colors per filter
+const STATUS_ROW_COLORS: Record<string, [string, string]> = {
+  all:       ['bg-white', 'bg-gray-50'],
+  active:    ['bg-white', 'bg-teal-50/30'],
+  pending:   ['bg-white', 'bg-amber-50/30'],
+  completed: ['bg-white', 'bg-blue-50/30'],
+  cancelled: ['bg-white', 'bg-red-50/20'],
+  delayed:   ['bg-white', 'bg-orange-50/20'],
+  archived:  ['bg-white', 'bg-purple-50/20'],
+}
+
 const ROW_COLORS = ['bg-white', 'bg-gray-50']
 
 function calcHours(logs: Array<{ started_at: string; finished_at: string | null; deleted?: boolean }>) {
@@ -374,8 +418,8 @@ export default function ProjectList({
                 <button key={key} onClick={() => setFilter(key)}
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border
                     ${filter === key
-                      ? 'bg-slate-800 text-white border-slate-800'
-                      : 'text-gray-600 border-gray-200 hover:border-slate-400 hover:text-slate-800'}`}>
+                      ? STATUS_PILL_ACTIVE[key]
+                      : STATUS_PILL_INACTIVE[key]}`}>
                   {STATUS_LABELS[key]}
                   {key !== 'all' && (
                     <span className="ml-1 opacity-60">{projects.filter((p: any) => p.status === key).length}</span>
@@ -400,8 +444,6 @@ export default function ProjectList({
               Sort
             </button>
 
-            <span className="text-xs text-gray-400 ml-auto">{projects.length}</span>
-
             {isAdmin && (
               <button onClick={() => router.push(`/${subdomain}/admin`)}
                 className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-white hover:bg-slate-700 transition-colors">
@@ -422,7 +464,7 @@ export default function ProjectList({
         </div>
 
         {/* Matter list */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
+        <div className={`flex-1 overflow-y-auto px-6 py-4 space-y-2 transition-colors ${STATUS_BG[filter] || 'bg-gray-50'}`}>
           {filtered.length === 0 && (
             <div className="text-center py-16 text-gray-400">
               <div className="text-sm">No matters</div>
@@ -434,7 +476,8 @@ export default function ProjectList({
             const recordCount = (project.work_records || []).filter((r: any) => !r.deleted).length
             const hours       = calcHours(project.time_logs || [])
             const isSelected  = selectedId === project.id
-            const rowBg       = ROW_COLORS[index % 2]
+            const rowColors    = STATUS_ROW_COLORS[filter] || ROW_COLORS
+            const rowBg       = rowColors[index % 2]
             const latestAct   = getLatestActivity(project)
 
             return (
