@@ -20,9 +20,34 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_ORDER = ['all', 'active', 'pending', 'completed', 'cancelled', 'delayed', 'archived']
 
-// Pill class names — defined in globals.css with !important, immune to everything
-// Selected: spill-on-{key}   Unselected: spill-off-{key}
-// List bg:  sbg-{key}
+// All class strings are complete literals — safelisted in tailwind.config.ts
+const PILL_ON: Record<string, string> = {
+  all:       'bg-slate-700 text-white border border-slate-700',
+  active:    'bg-teal-600  text-white border border-teal-600',
+  pending:   'bg-amber-500 text-white border border-amber-500',
+  completed: 'bg-blue-600  text-white border border-blue-600',
+  cancelled: 'bg-red-500   text-white border border-red-500',
+  delayed:   'bg-orange-500 text-white border border-orange-500',
+  archived:  'bg-purple-600 text-white border border-purple-600',
+}
+const PILL_OFF: Record<string, string> = {
+  all:       'bg-slate-100 text-slate-600 border border-slate-300',
+  active:    'bg-teal-100  text-teal-700  border border-teal-300',
+  pending:   'bg-amber-100 text-amber-800 border border-amber-300',
+  completed: 'bg-blue-100  text-blue-800  border border-blue-300',
+  cancelled: 'bg-red-100   text-red-800   border border-red-300',
+  delayed:   'bg-orange-100 text-orange-800 border border-orange-300',
+  archived:  'bg-purple-100 text-purple-800 border border-purple-300',
+}
+const LIST_BG: Record<string, string> = {
+  all:       'bg-gray-50',
+  active:    'bg-teal-50',
+  pending:   'bg-amber-50',
+  completed: 'bg-blue-50',
+  cancelled: 'bg-red-50',
+  delayed:   'bg-orange-50',
+  archived:  'bg-purple-50',
+}
 
 const ROW_COLORS = ['bg-white', 'bg-gray-50']
 
@@ -376,7 +401,7 @@ export default function ProjectList({
             <div className="flex items-center gap-1 flex-wrap">
               {STATUS_ORDER.map(key => (
                 <button key={key} onClick={() => setFilter(key)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer ${filter === key ? `spill-on-${key}` : `spill-off-${key}`}`}>
+                  className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer ${filter === key ? PILL_ON[key] : PILL_OFF[key]}`}>
                   {STATUS_LABELS[key]}
                   {key !== 'all' && (
                     <span className="ml-1 opacity-60">{projects.filter((p: any) => p.status === key).length}</span>
@@ -421,7 +446,7 @@ export default function ProjectList({
         </div>
 
         {/* Matter list */}
-        <div className={`flex-1 overflow-y-auto px-6 py-4 space-y-2 sbg-${filter}`}>
+        <div className={`flex-1 overflow-y-auto px-6 py-4 space-y-2 ${LIST_BG[filter] || 'bg-gray-50'}`}>
           {filtered.length === 0 && (
             <div className="text-center py-16 text-gray-400">
               <div className="text-sm">No matters</div>
