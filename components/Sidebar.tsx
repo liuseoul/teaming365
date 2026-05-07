@@ -579,7 +579,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
           {/* ── Single row: tabs + admin tab + avatar ── */}
           <div className="flex items-end px-3">
           {/* Scrollable tabs */}
-          <div className="flex items-end gap-0.5 overflow-x-auto flex-1 min-w-0">
+          <div className="flex items-end gap-0.5 overflow-x-auto flex-1 min-w-0 no-scrollbar">
             {[
               { href: `/${subdomain}/dashboard`, label: 'Today',      icon: '🗓️', tab: 'today'     },
               { href: `/${subdomain}/projects`,  label: 'Matters',    icon: '📋', tab: 'projects'  },
