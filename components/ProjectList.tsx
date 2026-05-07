@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, type CSSProperties } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Sidebar from './Sidebar'
@@ -20,40 +20,9 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_ORDER = ['all', 'active', 'pending', 'completed', 'cancelled', 'delayed', 'archived']
 
-// Pill styles — 100% inline, zero Tailwind for visual properties
-const PILL_BORDER = { borderWidth: '1px', borderStyle: 'solid' } as const
-
-const STATUS_PILL_ACTIVE_STYLE: Record<string, CSSProperties> = {
-  all:       { ...PILL_BORDER, backgroundColor: '#334155', color: '#ffffff', borderColor: '#334155' },
-  active:    { ...PILL_BORDER, backgroundColor: '#0d9488', color: '#ffffff', borderColor: '#0d9488' },
-  pending:   { ...PILL_BORDER, backgroundColor: '#f59e0b', color: '#ffffff', borderColor: '#f59e0b' },
-  completed: { ...PILL_BORDER, backgroundColor: '#2563eb', color: '#ffffff', borderColor: '#2563eb' },
-  cancelled: { ...PILL_BORDER, backgroundColor: '#ef4444', color: '#ffffff', borderColor: '#ef4444' },
-  delayed:   { ...PILL_BORDER, backgroundColor: '#f97316', color: '#ffffff', borderColor: '#f97316' },
-  archived:  { ...PILL_BORDER, backgroundColor: '#9333ea', color: '#ffffff', borderColor: '#9333ea' },
-}
-
-// Inactive pill: teal-100/amber-100/blue-100/red-100/orange-100/purple-100 shades — clearly visible tint
-const STATUS_PILL_INACTIVE_STYLE: Record<string, CSSProperties> = {
-  all:       { ...PILL_BORDER, backgroundColor: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' },
-  active:    { ...PILL_BORDER, backgroundColor: '#ccfbf1', color: '#0f766e', borderColor: '#5eead4' },
-  pending:   { ...PILL_BORDER, backgroundColor: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' },
-  completed: { ...PILL_BORDER, backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#93c5fd' },
-  cancelled: { ...PILL_BORDER, backgroundColor: '#fee2e2', color: '#b91c1c', borderColor: '#fca5a5' },
-  delayed:   { ...PILL_BORDER, backgroundColor: '#ffedd5', color: '#c2410c', borderColor: '#fdba74' },
-  archived:  { ...PILL_BORDER, backgroundColor: '#f3e8ff', color: '#6b21a8', borderColor: '#d8b4fe' },
-}
-
-// List background: -50 shade — subtle tint behind the matter rows
-const STATUS_BG_STYLE: Record<string, CSSProperties> = {
-  all:       { backgroundColor: '#f8fafc' },
-  active:    { backgroundColor: '#f0fdfa' },
-  pending:   { backgroundColor: '#fffbeb' },
-  completed: { backgroundColor: '#eff6ff' },
-  cancelled: { backgroundColor: '#fff5f5' },
-  delayed:   { backgroundColor: '#fff7ed' },
-  archived:  { backgroundColor: '#faf5ff' },
-}
+// Pill class names — defined in globals.css with !important, immune to everything
+// Selected: spill-on-{key}   Unselected: spill-off-{key}
+// List bg:  sbg-{key}
 
 const ROW_COLORS = ['bg-white', 'bg-gray-50']
 
@@ -407,8 +376,7 @@ export default function ProjectList({
             <div className="flex items-center gap-1 flex-wrap">
               {STATUS_ORDER.map(key => (
                 <button key={key} onClick={() => setFilter(key)}
-                  style={filter === key ? STATUS_PILL_ACTIVE_STYLE[key] : STATUS_PILL_INACTIVE_STYLE[key]}
-                  className="px-3 py-1 rounded-full text-xs font-medium cursor-pointer">
+                  className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer ${filter === key ? `spill-on-${key}` : `spill-off-${key}`}`}>
                   {STATUS_LABELS[key]}
                   {key !== 'all' && (
                     <span className="ml-1 opacity-60">{projects.filter((p: any) => p.status === key).length}</span>
@@ -453,8 +421,7 @@ export default function ProjectList({
         </div>
 
         {/* Matter list */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 transition-colors"
-          style={STATUS_BG_STYLE[filter] || STATUS_BG_STYLE.all}>
+        <div className={`flex-1 overflow-y-auto px-6 py-4 space-y-2 sbg-${filter}`}>
           {filtered.length === 0 && (
             <div className="text-center py-16 text-gray-400">
               <div className="text-sm">No matters</div>

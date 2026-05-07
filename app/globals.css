@@ -63,3 +63,31 @@
            text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors duration-150;
   }
 }
+
+/* ── Status filter pill colors (hardcoded hex, no Tailwind JIT dependency) ── */
+/* Selected / active state */
+.spill-on-all       { background-color:#334155 !important; color:#fff !important; border:1px solid #334155 !important; }
+.spill-on-active    { background-color:#0d9488 !important; color:#fff !important; border:1px solid #0d9488 !important; }
+.spill-on-pending   { background-color:#f59e0b !important; color:#fff !important; border:1px solid #f59e0b !important; }
+.spill-on-completed { background-color:#2563eb !important; color:#fff !important; border:1px solid #2563eb !important; }
+.spill-on-cancelled { background-color:#ef4444 !important; color:#fff !important; border:1px solid #ef4444 !important; }
+.spill-on-delayed   { background-color:#f97316 !important; color:#fff !important; border:1px solid #f97316 !important; }
+.spill-on-archived  { background-color:#9333ea !important; color:#fff !important; border:1px solid #9333ea !important; }
+
+/* Unselected / inactive state */
+.spill-off-all       { background-color:#f1f5f9 !important; color:#475569 !important; border:1px solid #cbd5e1 !important; }
+.spill-off-active    { background-color:#ccfbf1 !important; color:#0f766e !important; border:1px solid #5eead4 !important; }
+.spill-off-pending   { background-color:#fef3c7 !important; color:#92400e !important; border:1px solid #fcd34d !important; }
+.spill-off-completed { background-color:#dbeafe !important; color:#1e40af !important; border:1px solid #93c5fd !important; }
+.spill-off-cancelled { background-color:#fee2e2 !important; color:#b91c1c !important; border:1px solid #fca5a5 !important; }
+.spill-off-delayed   { background-color:#ffedd5 !important; color:#c2410c !important; border:1px solid #fdba74 !important; }
+.spill-off-archived  { background-color:#f3e8ff !important; color:#6b21a8 !important; border:1px solid #d8b4fe !important; }
+
+/* List background tint per selected filter */
+.sbg-all       { background-color:#f8fafc !important; }
+.sbg-active    { background-color:#f0fdfa !important; }
+.sbg-pending   { background-color:#fffbeb !important; }
+.sbg-completed { background-color:#eff6ff !important; }
+.sbg-cancelled { background-color:#fff5f5 !important; }
+.sbg-delayed   { background-color:#fff7ed !important; }
+.sbg-archived  { background-color:#faf5ff !important; }
