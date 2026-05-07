@@ -151,6 +151,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
   const [todoSaving,            setTodoSaving]            = useState(false)
   const [activeTodoId,          setActiveTodoId]          = useState<string | null>(null)
   const [completingIds,         setCompletingIds]         = useState<Set<string>>(new Set())
+  const [justCompletedIds,      setJustCompletedIds]      = useState<Set<string>>(new Set())
   const [editTodoId,            setEditTodoId]            = useState<string | null>(null)
   const [editTodoContent,       setEditTodoContent]       = useState('')
   const [editTodoAssignee,      setEditTodoAssignee]      = useState('')
@@ -216,7 +217,12 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
       completed_at: new Date().toISOString(),
       completed_by_name: profile?.name || '',
     }).eq('id', id).eq('group_id', groupId)
-    setSidebarTodos(prev => prev.filter((t: any) => t.id !== id))
+    // Show item with strikethrough for 3 seconds before removing
+    setJustCompletedIds(prev => new Set([...prev, id]))
+    setTimeout(() => {
+      setSidebarTodos(prev => prev.filter((t: any) => t.id !== id))
+      setJustCompletedIds(prev => { const s = new Set(prev); s.delete(id); return s })
+    }, 3000)
   }
 
   function memberInitials(name: string) {
@@ -663,36 +669,42 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                 {displaySidebarTodos.length === 0 ? (
                   <p className="text-xs text-gray-400 text-center py-3">All clear ✓</p>
                 ) : displaySidebarTodos.slice(0, 8).map((todo: any) => {
-                  const isCompleting = completingIds.has(todo.id)
-                  const isActive = activeTodoId === todo.id
+                  const isCompleting    = completingIds.has(todo.id)
+                  const isJustCompleted = justCompletedIds.has(todo.id)
+                  const isDone          = isCompleting || isJustCompleted
+                  const isActive        = activeTodoId === todo.id && !isDone
                   return (
                     <div key={todo.id}
                       onClick={() => {
+                        if (isDone) return
                         if (!isAdmin) { handleCompleteTodo(todo.id); return }
                         setActiveTodoId(isActive ? null : todo.id)
                       }}
-                      className={`flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors ${isActive ? 'bg-slate-100' : 'hover:bg-slate-50'}`}>
+                      className={`flex items-start gap-2 px-2 py-1.5 rounded transition-colors
+                        ${isDone ? 'opacity-60 cursor-default' : isActive ? 'bg-slate-100 cursor-pointer' : 'hover:bg-slate-50 cursor-pointer'}`}>
                       <button
-                        onClick={e => { e.stopPropagation(); handleCompleteTodo(todo.id) }}
+                        onClick={e => { e.stopPropagation(); if (!isDone) handleCompleteTodo(todo.id) }}
+                        disabled={isDone}
                         className={`w-4 h-4 rounded border-2 flex-shrink-0 mt-0.5 transition-all
-                          ${isCompleting ? 'border-green-500 bg-green-100' : 'border-gray-300 hover:border-slate-500'}`}
+                          ${isDone ? 'border-green-500 bg-green-100' : 'border-gray-300 hover:border-slate-500'}`}
                         title="Mark complete">
-                        {isCompleting && <span className="text-[8px] text-green-600 font-bold flex items-center justify-center h-full">✓</span>}
+                        {isDone && <span className="text-[8px] text-green-600 font-bold flex items-center justify-center h-full">✓</span>}
                       </button>
                       <div className="min-w-0 flex-1">
-                        <div className={`text-sm leading-snug line-clamp-2 ${isCompleting ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                        <div className={`text-sm leading-snug line-clamp-2 ${isDone ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                           {todo.content}
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           {todo.assignee_abbrev && (
                             <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-1 rounded">{todo.assignee_abbrev}</span>
                           )}
-                          {todo.due_date && (
+                          {todo.due_date && !isDone && (
                             <span className={`text-[10px] font-medium ${todo.due_date < todayStr ? 'text-rose-600 font-semibold' : 'text-gray-400'}`}>
                               {todo.due_date.slice(5, 7)}/{todo.due_date.slice(8, 10)}
                               {todo.due_date < todayStr ? ' ⚠' : ''}
                             </span>
                           )}
+                          {isJustCompleted && <span className="text-[10px] text-green-600 font-medium">✓ Done</span>}
                         </div>
                         {isActive && isAdmin && (
                           <div className="flex gap-1.5 mt-1.5" onClick={e => e.stopPropagation()}>

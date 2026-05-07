@@ -163,6 +163,33 @@ export default function ProjectDetailPanel({
   const [recordContent,  setRecordContent]  = useState('')
   const [savingRecord,   setSavingRecord]   = useState(false)
 
+  // Edit work record
+  const [editRecordId,      setEditRecordId]      = useState<string | null>(null)
+  const [editRecordContent, setEditRecordContent] = useState('')
+  const [editRecordDate,    setEditRecordDate]    = useState('')
+  const [savingEditRecord,  setSavingEditRecord]  = useState(false)
+
+  function openEditRecord(r: any) {
+    setEditRecordId(r.id)
+    setEditRecordContent(r.content)
+    setEditRecordDate(new Date(r.created_at).toISOString().slice(0, 10))
+  }
+
+  async function saveEditRecord() {
+    if (!editRecordId || !editRecordContent.trim()) return
+    setSavingEditRecord(true)
+    const [y, mo, d] = editRecordDate.split('-').map(Number)
+    const createdAt = new Date(y, mo - 1, d, 12, 0, 0).toISOString()
+    const { error } = await supabase.from('work_records').update({
+      content:    encField(editRecordContent.trim(), groupKey) ?? editRecordContent.trim(),
+      created_at: createdAt,
+    }).eq('id', editRecordId).eq('group_id', groupId)
+    setSavingEditRecord(false)
+    if (error) { alert('Save failed: ' + error.message); return }
+    await loadRecords()
+    setEditRecordId(null)
+  }
+
   const [showAddTime,   setShowAddTime]   = useState(false)
   const [timeDate,      setTimeDate]      = useState(today)
   const [timeStart,     setTimeStart]     = useState('09:00')
@@ -170,6 +197,44 @@ export default function ProjectDetailPanel({
   const [timeContent,   setTimeContent]   = useState('')
   const [newBillable,   setNewBillable]   = useState(true)
   const [savingTime,    setSavingTime]    = useState(false)
+
+  // Edit time log
+  const [editLogId,       setEditLogId]       = useState<string | null>(null)
+  const [editLogDate,     setEditLogDate]     = useState('')
+  const [editLogStart,    setEditLogStart]    = useState('')
+  const [editLogEnd,      setEditLogEnd]      = useState('')
+  const [editLogDesc,     setEditLogDesc]     = useState('')
+  const [editLogBillable, setEditLogBillable] = useState(true)
+  const [savingEditLog,   setSavingEditLog]   = useState(false)
+
+  function openEditTimeLog(l: any) {
+    setEditLogId(l.id)
+    const s = new Date(l.started_at)
+    setEditLogDate(s.toISOString().slice(0, 10))
+    setEditLogStart(`${String(s.getHours()).padStart(2,'0')}:${String(s.getMinutes()).padStart(2,'0')}`)
+    if (l.finished_at) {
+      const e = new Date(l.finished_at)
+      setEditLogEnd(`${String(e.getHours()).padStart(2,'0')}:${String(e.getMinutes()).padStart(2,'0')}`)
+    }
+    setEditLogDesc(l.description || '')
+    setEditLogBillable(l.billable !== false)
+  }
+
+  async function saveEditTimeLog() {
+    if (!editLogId || !editLogDate || !editLogStart || !editLogEnd) { alert('Fill in date and times'); return }
+    if (editLogEnd <= editLogStart) { alert('End time must be after start'); return }
+    setSavingEditLog(true)
+    const { error } = await supabase.from('time_logs').update({
+      started_at:  localDatetime(editLogDate, editLogStart),
+      finished_at: localDatetime(editLogDate, editLogEnd),
+      description: encField(editLogDesc.trim(), groupKey) ?? editLogDesc.trim() ?? null,
+      billable:    editLogBillable,
+    }).eq('id', editLogId).eq('group_id', groupId)
+    setSavingEditLog(false)
+    if (error) { alert('Save failed: ' + error.message); return }
+    await loadTimeLogs()
+    setEditLogId(null)
+  }
 
   async function loadRecords() {
     const { data, error } = await supabase
@@ -420,21 +485,38 @@ export default function ProjectDetailPanel({
                       )}
                     </div>
                   </div>
-                  <p className={`text-sm text-gray-800 leading-relaxed ${r.deleted ? 'line-through text-gray-400' : ''}`}>
-                    {r.content}
-                  </p>
-                  <div className="flex gap-2 mt-1.5">
-                    {canSoftDelete && (
-                      <button onClick={() => softDeleteRecord(r.id)} className="text-xs text-amber-500 hover:text-amber-700">
-                        Delete
-                      </button>
-                    )}
-                    {canHardDelete && (
-                      <button onClick={() => hardDeleteRecord(r.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">
-                        Delete permanently
-                      </button>
-                    )}
-                  </div>
+                  {editRecordId === r.id ? (
+                    <div className="mt-1 space-y-2">
+                      <input type="date" value={editRecordDate} onChange={e => setEditRecordDate(e.target.value)}
+                        className="input-field" />
+                      <textarea value={editRecordContent} onChange={e => setEditRecordContent(e.target.value)}
+                        rows={3} className="input-field resize-none" autoFocus />
+                      <div className="flex gap-2">
+                        <button onClick={saveEditRecord} disabled={savingEditRecord || !editRecordContent.trim()}
+                          className="text-xs font-medium px-3 py-1 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:bg-gray-200 disabled:text-gray-400 transition-colors">
+                          {savingEditRecord ? 'Saving…' : 'Save'}
+                        </button>
+                        <button onClick={() => setEditRecordId(null)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className={`text-sm text-gray-800 leading-relaxed ${r.deleted ? 'line-through text-gray-400' : ''}`}>
+                        {r.content}
+                      </p>
+                      <div className="flex gap-2 mt-1.5">
+                        {!r.deleted && (
+                          <button onClick={() => openEditRecord(r)} className="text-xs text-blue-500 hover:text-blue-700">Edit</button>
+                        )}
+                        {canSoftDelete && (
+                          <button onClick={() => softDeleteRecord(r.id)} className="text-xs text-amber-500 hover:text-amber-700">Delete</button>
+                        )}
+                        {canHardDelete && (
+                          <button onClick={() => hardDeleteRecord(r.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete permanently</button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               )
             })}
@@ -489,17 +571,47 @@ export default function ProjectDetailPanel({
                     {formatDateTime(l.started_at)}
                     {l.finished_at && ` — ${new Date(l.finished_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`}
                   </div>
-                  {l.description && (
-                    <p className={`text-sm text-gray-600 mt-1 ${l.deleted ? 'line-through' : ''}`}>{l.description}</p>
+                  {editLogId === l.id ? (
+                    <div className="mt-2 space-y-2">
+                      <input type="date" value={editLogDate} onChange={e => setEditLogDate(e.target.value)} className="input-field" />
+                      <div className="flex gap-2">
+                        <input type="time" value={editLogStart} onChange={e => setEditLogStart(e.target.value)} className="input-field flex-1" />
+                        <span className="text-gray-400 self-center">—</span>
+                        <input type="time" value={editLogEnd} onChange={e => setEditLogEnd(e.target.value)} className="input-field flex-1" />
+                      </div>
+                      <textarea value={editLogDesc} onChange={e => setEditLogDesc(e.target.value)}
+                        placeholder="Description (optional)" rows={2} className="input-field resize-none" />
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                          <input type="checkbox" checked={editLogBillable} onChange={e => setEditLogBillable(e.target.checked)}
+                            className="rounded border-gray-300 text-teal-600" />
+                          Billable
+                        </label>
+                        <button onClick={saveEditTimeLog} disabled={savingEditLog}
+                          className="text-xs font-medium px-3 py-1 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:bg-gray-200 disabled:text-gray-400 transition-colors">
+                          {savingEditLog ? 'Saving…' : 'Save'}
+                        </button>
+                        <button onClick={() => setEditLogId(null)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {l.description && (
+                        <p className={`text-sm text-gray-600 mt-1 ${l.deleted ? 'line-through' : ''}`}>{l.description}</p>
+                      )}
+                      <div className="flex gap-2 mt-1.5">
+                        {!l.deleted && (
+                          <button onClick={() => openEditTimeLog(l)} className="text-xs text-blue-500 hover:text-blue-700">Edit</button>
+                        )}
+                        {canSoftDelete && (
+                          <button onClick={() => softDeleteTimeLog(l.id)} className="text-xs text-amber-500 hover:text-amber-700">Delete</button>
+                        )}
+                        {canHardDelete && (
+                          <button onClick={() => hardDeleteTimeLog(l.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete permanently</button>
+                        )}
+                      </div>
+                    </>
                   )}
-                  <div className="flex gap-2 mt-1.5">
-                    {canSoftDelete && (
-                      <button onClick={() => softDeleteTimeLog(l.id)} className="text-xs text-amber-500 hover:text-amber-700">Delete</button>
-                    )}
-                    {canHardDelete && (
-                      <button onClick={() => hardDeleteTimeLog(l.id)} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete permanently</button>
-                    )}
-                  </div>
                 </div>
               )
             })}
