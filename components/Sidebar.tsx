@@ -639,13 +639,13 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
         {/* ── BODY ─────────────────────────────────────────────── */}
         <div className="flex flex-1 min-h-0">
 
-          {/* Main content (injected by page) */}
-          <div className="flex-1 min-w-0 overflow-hidden">
+          {/* Main content (injected by page) — 62% */}
+          <div className="w-[62%] min-w-0 overflow-hidden flex-shrink-0">
             {children}
           </div>
 
-          {/* ── RIGHT PANEL ──────────────────────────────────── */}
-          <div className="w-[36rem] bg-gray-50 border-l border-gray-200 flex flex-col flex-shrink-0 no-print">
+          {/* ── RIGHT PANEL — 38% ────────────────────────────── */}
+          <div className="w-[38%] bg-gray-50 border-l border-gray-200 flex flex-col flex-shrink-0 no-print">
 
             {/* ── TODOS ──────────────────────────────────────── */}
             <div className="flex-1 min-h-0 flex flex-col bg-white border-b border-gray-200">
