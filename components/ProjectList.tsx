@@ -20,36 +20,37 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_ORDER = ['all', 'active', 'pending', 'completed', 'cancelled', 'delayed', 'archived']
 
-// Active pill style (selected)
-// Inline styles — immune to Tailwind purging
+// Pill styles — 100% inline, zero Tailwind for visual properties
+const PILL_BORDER = { borderWidth: '1px', borderStyle: 'solid' } as const
+
 const STATUS_PILL_ACTIVE_STYLE: Record<string, CSSProperties> = {
-  all:       { backgroundColor: '#334155', color: '#fff', borderColor: '#334155' },
-  active:    { backgroundColor: '#0d9488', color: '#fff', borderColor: '#0d9488' },
-  pending:   { backgroundColor: '#f59e0b', color: '#fff', borderColor: '#f59e0b' },
-  completed: { backgroundColor: '#2563eb', color: '#fff', borderColor: '#2563eb' },
-  cancelled: { backgroundColor: '#ef4444', color: '#fff', borderColor: '#ef4444' },
-  delayed:   { backgroundColor: '#f97316', color: '#fff', borderColor: '#f97316' },
-  archived:  { backgroundColor: '#9333ea', color: '#fff', borderColor: '#9333ea' },
+  all:       { ...PILL_BORDER, backgroundColor: '#334155', color: '#ffffff', borderColor: '#334155' },
+  active:    { ...PILL_BORDER, backgroundColor: '#0d9488', color: '#ffffff', borderColor: '#0d9488' },
+  pending:   { ...PILL_BORDER, backgroundColor: '#f59e0b', color: '#ffffff', borderColor: '#f59e0b' },
+  completed: { ...PILL_BORDER, backgroundColor: '#2563eb', color: '#ffffff', borderColor: '#2563eb' },
+  cancelled: { ...PILL_BORDER, backgroundColor: '#ef4444', color: '#ffffff', borderColor: '#ef4444' },
+  delayed:   { ...PILL_BORDER, backgroundColor: '#f97316', color: '#ffffff', borderColor: '#f97316' },
+  archived:  { ...PILL_BORDER, backgroundColor: '#9333ea', color: '#ffffff', borderColor: '#9333ea' },
 }
 
 const STATUS_PILL_INACTIVE_STYLE: Record<string, CSSProperties> = {
-  all:       { color: '#475569', borderColor: '#e5e7eb' },
-  active:    { color: '#0f766e', borderColor: '#99f6e4' },
-  pending:   { color: '#b45309', borderColor: '#fde68a' },
-  completed: { color: '#1d4ed8', borderColor: '#bfdbfe' },
-  cancelled: { color: '#dc2626', borderColor: '#fecaca' },
-  delayed:   { color: '#c2410c', borderColor: '#fed7aa' },
-  archived:  { color: '#7e22ce', borderColor: '#e9d5ff' },
+  all:       { ...PILL_BORDER, backgroundColor: '#ffffff', color: '#475569', borderColor: '#e5e7eb' },
+  active:    { ...PILL_BORDER, backgroundColor: '#f0fdfa', color: '#0f766e', borderColor: '#99f6e4' },
+  pending:   { ...PILL_BORDER, backgroundColor: '#fffbeb', color: '#b45309', borderColor: '#fde68a' },
+  completed: { ...PILL_BORDER, backgroundColor: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' },
+  cancelled: { ...PILL_BORDER, backgroundColor: '#fff5f5', color: '#dc2626', borderColor: '#fecaca' },
+  delayed:   { ...PILL_BORDER, backgroundColor: '#fff7ed', color: '#c2410c', borderColor: '#fed7aa' },
+  archived:  { ...PILL_BORDER, backgroundColor: '#faf5ff', color: '#7e22ce', borderColor: '#e9d5ff' },
 }
 
 const STATUS_BG_STYLE: Record<string, CSSProperties> = {
-  all:       { backgroundColor: '#f9fafb' },
-  active:    { backgroundColor: 'rgba(20,184,166,0.06)' },
-  pending:   { backgroundColor: 'rgba(245,158,11,0.06)' },
-  completed: { backgroundColor: 'rgba(37,99,235,0.06)' },
-  cancelled: { backgroundColor: 'rgba(239,68,68,0.05)' },
-  delayed:   { backgroundColor: 'rgba(249,115,22,0.05)' },
-  archived:  { backgroundColor: 'rgba(147,51,234,0.05)' },
+  all:       { backgroundColor: '#f8fafc' },
+  active:    { backgroundColor: '#f0fdfa' },
+  pending:   { backgroundColor: '#fffbeb' },
+  completed: { backgroundColor: '#eff6ff' },
+  cancelled: { backgroundColor: '#fff5f5' },
+  delayed:   { backgroundColor: '#fff7ed' },
+  archived:  { backgroundColor: '#faf5ff' },
 }
 
 const ROW_COLORS = ['bg-white', 'bg-gray-50']
@@ -405,7 +406,7 @@ export default function ProjectList({
               {STATUS_ORDER.map(key => (
                 <button key={key} onClick={() => setFilter(key)}
                   style={filter === key ? STATUS_PILL_ACTIVE_STYLE[key] : STATUS_PILL_INACTIVE_STYLE[key]}
-                  className="px-3 py-1 rounded-full text-xs font-medium transition-colors border">
+                  className="px-3 py-1 rounded-full text-xs font-medium cursor-pointer">
                   {STATUS_LABELS[key]}
                   {key !== 'all' && (
                     <span className="ml-1 opacity-60">{projects.filter((p: any) => p.status === key).length}</span>
