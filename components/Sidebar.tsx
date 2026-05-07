@@ -7,6 +7,27 @@ import { useE2E } from '@/lib/useE2E'
 import { useGroupKey } from '@/lib/useGroupKey'
 import { encField, decField } from '@/lib/e2e'
 
+// Injected at runtime — each nav tab gets its own color, clean folder-tab borders
+const TAB_CSS = `
+.nav-tab { border-bottom: 1px solid #d1d5db; }
+.nav-tab[data-active="1"] { border-bottom: none; margin-bottom: -1px; z-index:10; font-weight:600; }
+
+.nav-tab[data-tab="today"][data-active="0"]      {background:#e0f2fe!important;color:#0369a1!important;border-color:#bae6fd!important}
+.nav-tab[data-tab="today"][data-active="1"]      {background:#0284c7!important;color:#fff!important;border-color:#0284c7!important}
+.nav-tab[data-tab="projects"][data-active="0"]   {background:#e0e7ff!important;color:#4338ca!important;border-color:#c7d2fe!important}
+.nav-tab[data-tab="projects"][data-active="1"]   {background:#4f46e5!important;color:#fff!important;border-color:#4f46e5!important}
+.nav-tab[data-tab="analytics"][data-active="0"]  {background:#fef9c3!important;color:#a16207!important;border-color:#fde68a!important}
+.nav-tab[data-tab="analytics"][data-active="1"]  {background:#ca8a04!important;color:#fff!important;border-color:#ca8a04!important}
+.nav-tab[data-tab="invoice"][data-active="0"]    {background:#d1fae5!important;color:#065f46!important;border-color:#a7f3d0!important}
+.nav-tab[data-tab="invoice"][data-active="1"]    {background:#059669!important;color:#fff!important;border-color:#059669!important}
+.nav-tab[data-tab="mystats"][data-active="0"]    {background:#ffe4e6!important;color:#9f1239!important;border-color:#fecdd3!important}
+.nav-tab[data-tab="mystats"][data-active="1"]    {background:#e11d48!important;color:#fff!important;border-color:#e11d48!important}
+.nav-tab[data-tab="teamstats"][data-active="0"]  {background:#f3e8ff!important;color:#6b21a8!important;border-color:#e9d5ff!important}
+.nav-tab[data-tab="teamstats"][data-active="1"]  {background:#9333ea!important;color:#fff!important;border-color:#9333ea!important}
+.nav-tab[data-tab="admin"][data-active="0"]      {background:#f1f5f9!important;color:#475569!important;border-color:#e2e8f0!important}
+.nav-tab[data-tab="admin"][data-active="1"]      {background:#334155!important;color:#fff!important;border-color:#334155!important}
+`
+
 const TYPE_LABELS: Record<string, string> = {
   // ── Legal ─────────────────────────────────────────────────
   court_hearing:          'Court Hearing',
@@ -544,6 +565,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
       <div className="flex flex-col h-screen overflow-hidden">
 
         {/* ── TOP NAVIGATION BAR ──────────────────────────────── */}
+        <style dangerouslySetInnerHTML={{ __html: TAB_CSS }} />
         <header className="bg-white border-b border-gray-200 flex-shrink-0 z-20 no-print">
 
           {/* ── Single row: tabs + admin tab + avatar ── */}
@@ -551,12 +573,12 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
           {/* Scrollable tabs */}
           <div className="flex items-end gap-0.5 overflow-x-auto flex-1 min-w-0">
             {[
-              { href: `/${subdomain}/dashboard`, label: 'Today',      icon: '🗓️' },
-              { href: `/${subdomain}/projects`,  label: 'Matters',    icon: '📋' },
-              { href: `/${subdomain}/analytics`, label: 'Analytics',  icon: '📊', adminOnly: true },
-              { href: `/${subdomain}/invoice`,   label: 'Invoice',    icon: '🧾', adminOnly: true },
-              { href: `/${subdomain}/my-stats`,  label: 'My Stats',   icon: '📈' },
-              { href: `/${subdomain}/team-stats`,label: 'Team Stats', icon: '👥', adminOnly: true },
+              { href: `/${subdomain}/dashboard`, label: 'Today',      icon: '🗓️', tab: 'today'     },
+              { href: `/${subdomain}/projects`,  label: 'Matters',    icon: '📋', tab: 'projects'  },
+              { href: `/${subdomain}/analytics`, label: 'Analytics',  icon: '📊', tab: 'analytics', adminOnly: true },
+              { href: `/${subdomain}/invoice`,   label: 'Invoice',    icon: '🧾', tab: 'invoice',   adminOnly: true },
+              { href: `/${subdomain}/my-stats`,  label: 'My Stats',   icon: '📈', tab: 'mystats'   },
+              { href: `/${subdomain}/team-stats`,label: 'Team Stats', icon: '👥', tab: 'teamstats', adminOnly: true },
             ]
               .filter(item => !item.adminOnly || isAdmin)
               .map(item => {
@@ -564,23 +586,21 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                 return (
                   <button key={item.label}
                     onClick={() => router.push(item.href)}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-t-md border whitespace-nowrap flex-shrink-0 transition-all
-                      ${isActive
-                        ? 'bg-white border-gray-300 border-b-0 text-slate-900 font-semibold -mb-px z-10 shadow-sm'
-                        : 'bg-slate-50 border-transparent text-gray-500 hover:bg-white hover:text-slate-800 hover:border-gray-200 hover:border-b-0 hover:-mb-px'}`}>
+                    data-tab={item.tab}
+                    data-active={isActive ? '1' : '0'}
+                    className="nav-tab flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-t-md border whitespace-nowrap flex-shrink-0">
                     <span className="text-sm leading-none">{item.icon}</span>
                     <span>{item.label}</span>
                   </button>
                 )
               })}
 
-            {/* Admin tab — same folder-tab style */}
+            {/* Admin tab */}
             {isAdmin && (
               <button onClick={() => router.push(`/${subdomain}/admin`)}
-                className={`flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-t-md border whitespace-nowrap flex-shrink-0 transition-all
-                  ${pathname === `/${subdomain}/admin`
-                    ? 'bg-white border-gray-300 border-b-0 text-slate-900 font-semibold -mb-px z-10 shadow-sm'
-                    : 'bg-slate-50 border-transparent text-gray-500 hover:bg-white hover:text-slate-800 hover:border-gray-200 hover:border-b-0 hover:-mb-px'}`}>
+                data-tab="admin"
+                data-active={pathname === `/${subdomain}/admin` ? '1' : '0'}
+                className="nav-tab flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-t-md border whitespace-nowrap flex-shrink-0">
                 <span className="text-sm leading-none">⚙️</span>
                 <span>Admin</span>
               </button>
