@@ -151,7 +151,6 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
   const [todoSaving,            setTodoSaving]            = useState(false)
   const [activeTodoId,          setActiveTodoId]          = useState<string | null>(null)
   const [completingIds,         setCompletingIds]         = useState<Set<string>>(new Set())
-  const [justCompletedIds,      setJustCompletedIds]      = useState<Set<string>>(new Set())
   const [editTodoId,            setEditTodoId]            = useState<string | null>(null)
   const [editTodoContent,       setEditTodoContent]       = useState('')
   const [editTodoAssignee,      setEditTodoAssignee]      = useState('')
@@ -202,12 +201,10 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
   async function loadSidebarTodos() {
     const { data } = await supabase
       .from('todos')
-      .select('id, content, assignee_abbrev, due_date')
+      .select('id, content, assignee_abbrev, due_date, completed, completed_at, completed_by_name')
       .eq('group_id', groupId)
-      .eq('completed', false)
       .eq('deleted', false)
       .order('created_at', { ascending: false })
-      .limit(30)
     setSidebarTodos(data || [])
   }
 
@@ -217,8 +214,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
       completed_at: new Date().toISOString(),
       completed_by_name: profile?.name || '',
     }).eq('id', id).eq('group_id', groupId)
-    // Keep visible with strikethrough until page reload
-    setJustCompletedIds(prev => new Set([...prev, id]))
+    await loadSidebarTodos()
   }
 
   function memberInitials(name: string) {
@@ -227,10 +223,8 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
 
   async function handleCompleteTodo(id: string) {
     setCompletingIds(prev => new Set([...prev, id]))
-    setTimeout(async () => {
-      await completeSidebarTodo(id)
-      setCompletingIds(prev => { const s = new Set(prev); s.delete(id); return s })
-    }, 500)
+    await completeSidebarTodo(id)
+    setCompletingIds(prev => { const s = new Set(prev); s.delete(id); return s })
   }
 
   async function deleteTodo(id: string) {
@@ -644,12 +638,19 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
           <div className="w-[38%] bg-gray-50 border-l border-gray-200 flex flex-col flex-shrink-0 no-print">
 
             {/* ── TODOS ──────────────────────────────────────── */}
+            {(() => {
+              const pendingTodos   = displaySidebarTodos.filter((t: any) => !t.completed)
+              const completedTodos = displaySidebarTodos.filter((t: any) => t.completed)
+                .sort((a: any, b: any) => (b.completed_at || '').localeCompare(a.completed_at || ''))
+              const visiblePending   = pendingTodos.slice(0, 8)
+              const morePending      = pendingTodos.length > 8
+              return (
             <div className="flex-1 min-h-0 flex flex-col bg-white border-b border-gray-200">
               <div className="flex items-center gap-2 px-3 pt-3 pb-2 flex-shrink-0">
                 <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex-1">📝 Todos</span>
-                {displaySidebarTodos.length > 0 && (
+                {pendingTodos.length > 0 && (
                   <span className="text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">
-                    {displaySidebarTodos.length}
+                    {pendingTodos.length}
                   </span>
                 )}
                 <button onClick={() => setShowAllTodos(true)}
@@ -662,45 +663,45 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto pb-2 space-y-0.5 w-4/5 mx-auto">
-                {displaySidebarTodos.length === 0 ? (
+                {pendingTodos.length === 0 && completedTodos.length === 0 ? (
                   <p className="text-xs text-gray-400 text-center py-3">All clear ✓</p>
-                ) : displaySidebarTodos.slice(0, 8).map((todo: any) => {
-                  const isCompleting    = completingIds.has(todo.id)
-                  const isJustCompleted = justCompletedIds.has(todo.id)
-                  const isDone          = isCompleting || isJustCompleted
-                  const isActive        = activeTodoId === todo.id && !isDone
+                ) : null}
+
+                {/* Pending todos */}
+                {visiblePending.map((todo: any) => {
+                  const isCompleting = completingIds.has(todo.id)
+                  const isActive     = activeTodoId === todo.id && !isCompleting
                   return (
                     <div key={todo.id}
                       onClick={() => {
-                        if (isDone) return
+                        if (isCompleting) return
                         if (!isAdmin) { handleCompleteTodo(todo.id); return }
                         setActiveTodoId(isActive ? null : todo.id)
                       }}
                       className={`flex items-start gap-2 px-2 py-1.5 rounded transition-colors
-                        ${isDone ? 'opacity-60 cursor-default' : isActive ? 'bg-slate-100 cursor-pointer' : 'hover:bg-slate-50 cursor-pointer'}`}>
+                        ${isCompleting ? 'opacity-50 cursor-default' : isActive ? 'bg-slate-100 cursor-pointer' : 'hover:bg-slate-50 cursor-pointer'}`}>
                       <button
-                        onClick={e => { e.stopPropagation(); if (!isDone) handleCompleteTodo(todo.id) }}
-                        disabled={isDone}
+                        onClick={e => { e.stopPropagation(); if (!isCompleting) handleCompleteTodo(todo.id) }}
+                        disabled={isCompleting}
                         className={`w-4 h-4 rounded border-2 flex-shrink-0 mt-0.5 transition-all
-                          ${isDone ? 'border-green-500 bg-green-100' : 'border-gray-300 hover:border-slate-500'}`}
+                          ${isCompleting ? 'border-green-500 bg-green-100' : 'border-gray-300 hover:border-slate-500'}`}
                         title="Mark complete">
-                        {isDone && <span className="text-[8px] text-green-600 font-bold flex items-center justify-center h-full">✓</span>}
+                        {isCompleting && <span className="text-[8px] text-green-600 font-bold flex items-center justify-center h-full">✓</span>}
                       </button>
                       <div className="min-w-0 flex-1">
-                        <div className={`text-sm leading-snug line-clamp-2 ${isDone ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                        <div className={`text-sm leading-snug line-clamp-2 ${isCompleting ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                           {todo.content}
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           {todo.assignee_abbrev && (
                             <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-1 rounded">{todo.assignee_abbrev}</span>
                           )}
-                          {todo.due_date && !isDone && (
+                          {todo.due_date && (
                             <span className={`text-[10px] font-medium ${todo.due_date < todayStr ? 'text-rose-600 font-semibold' : 'text-gray-400'}`}>
                               {todo.due_date.slice(5, 7)}/{todo.due_date.slice(8, 10)}
                               {todo.due_date < todayStr ? ' ⚠' : ''}
                             </span>
                           )}
-                          {isJustCompleted && <span className="text-[10px] text-green-600 font-medium">✓ Done</span>}
                         </div>
                         {isActive && isAdmin && (
                           <div className="flex gap-1.5 mt-1.5" onClick={e => e.stopPropagation()}>
@@ -722,14 +723,54 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                     </div>
                   )
                 })}
-                {displaySidebarTodos.length > 8 && (
+                {morePending && (
                   <button onClick={() => setShowAllTodos(true)}
                     className="w-full text-[10px] text-indigo-600 hover:text-indigo-800 py-1 text-center font-medium transition-colors">
-                    +{displaySidebarTodos.length - 8} more
+                    +{pendingTodos.length - 8} more pending
                   </button>
+                )}
+
+                {/* Completed divider + completed todos */}
+                {completedTodos.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-2 pt-2 pb-1">
+                      <div className="flex-1 h-px bg-gray-200" />
+                      <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">Completed {completedTodos.length}</span>
+                      <div className="flex-1 h-px bg-gray-200" />
+                    </div>
+                    {completedTodos.map((todo: any) => (
+                      <div key={todo.id} className="flex items-start gap-2 px-2 py-1.5 rounded opacity-70">
+                        <span className="flex-shrink-0 mt-0.5 w-4 h-4 rounded-full bg-teal-500 flex items-center justify-center">
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm leading-snug line-clamp-2 line-through text-gray-400">
+                            {todo.content}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {todo.assignee_abbrev && (
+                              <span className="text-[10px] text-slate-400 bg-slate-100 px-1 rounded">{todo.assignee_abbrev}</span>
+                            )}
+                            {todo.completed_by_name && (
+                              <span className="text-[10px] text-teal-500 font-medium">✓ {todo.completed_by_name}</span>
+                            )}
+                            {todo.completed_at && (
+                              <span className="text-[10px] text-gray-300">
+                                {todo.completed_at.slice(5, 7)}/{todo.completed_at.slice(8, 10)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </>
                 )}
               </div>
             </div>
+              )
+            })()}
 
             {/* ── SCHEDULE ───────────────────────────────────── */}
             <div className="flex-1 min-h-0 flex flex-col">
@@ -1195,20 +1236,25 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
       )}
 
       {/* ══ Show All Todos Modal ════════════════════════════════ */}
-      {showAllTodos && (
+      {showAllTodos && (() => {
+        const allPending   = displaySidebarTodos.filter((t: any) => !t.completed)
+        const allCompleted = displaySidebarTodos.filter((t: any) => t.completed)
+          .sort((a: any, b: any) => (b.completed_at || '').localeCompare(a.completed_at || ''))
+        return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
               <div>
-                <h3 className="text-base font-semibold text-gray-900">All Open Todos</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{displaySidebarTodos.length} task{displaySidebarTodos.length !== 1 ? 's' : ''} remaining</p>
+                <h3 className="text-base font-semibold text-gray-900">All Todos</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{allPending.length} pending · {allCompleted.length} completed</p>
               </div>
               <button onClick={() => setShowAllTodos(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
-              {displaySidebarTodos.length === 0 ? (
+              {allPending.length === 0 && allCompleted.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-8">All clear ✓</p>
-              ) : displaySidebarTodos.map((todo: any) => (
+              ) : null}
+              {allPending.map((todo: any) => (
                 <div key={todo.id} className="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 group transition-colors border border-transparent hover:border-gray-200">
                   <button
                     onClick={async () => { await completeSidebarTodo(todo.id) }}
@@ -1229,6 +1275,40 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                   </div>
                 </div>
               ))}
+              {allCompleted.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2 pt-3 pb-1">
+                    <div className="flex-1 h-px bg-gray-200" />
+                    <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">Completed {allCompleted.length}</span>
+                    <div className="flex-1 h-px bg-gray-200" />
+                  </div>
+                  {allCompleted.map((todo: any) => (
+                    <div key={todo.id} className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-transparent opacity-70">
+                      <span className="flex-shrink-0 mt-0.5 w-4 h-4 rounded-full bg-teal-500 flex items-center justify-center">
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm text-gray-400 line-through leading-snug">{todo.content}</div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {todo.assignee_abbrev && (
+                            <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{todo.assignee_abbrev}</span>
+                          )}
+                          {todo.completed_by_name && (
+                            <span className="text-[10px] text-teal-500 font-medium">✓ {todo.completed_by_name}</span>
+                          )}
+                          {todo.completed_at && (
+                            <span className="text-[10px] text-gray-300">
+                              {todo.completed_at.slice(5, 7)}/{todo.completed_at.slice(8, 10)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
             <div className="px-6 py-3 border-t border-gray-100 flex-shrink-0">
               <button onClick={() => { setShowAllTodos(false); setShowAddTodo(true) }}
@@ -1238,7 +1318,8 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
     </>
   )
 }

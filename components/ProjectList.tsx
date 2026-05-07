@@ -33,13 +33,13 @@ const STATUS_PILL_ACTIVE_STYLE: Record<string, CSSProperties> = {
 }
 
 const STATUS_PILL_INACTIVE_STYLE: Record<string, CSSProperties> = {
-  all:       { color: '#475569' },
-  active:    { color: '#0f766e' },
-  pending:   { color: '#b45309' },
-  completed: { color: '#1d4ed8' },
-  cancelled: { color: '#dc2626' },
-  delayed:   { color: '#c2410c' },
-  archived:  { color: '#7e22ce' },
+  all:       { color: '#475569', borderColor: '#e5e7eb' },
+  active:    { color: '#0f766e', borderColor: '#99f6e4' },
+  pending:   { color: '#b45309', borderColor: '#fde68a' },
+  completed: { color: '#1d4ed8', borderColor: '#bfdbfe' },
+  cancelled: { color: '#dc2626', borderColor: '#fecaca' },
+  delayed:   { color: '#c2410c', borderColor: '#fed7aa' },
+  archived:  { color: '#7e22ce', borderColor: '#e9d5ff' },
 }
 
 const STATUS_BG_STYLE: Record<string, CSSProperties> = {
@@ -405,7 +405,7 @@ export default function ProjectList({
               {STATUS_ORDER.map(key => (
                 <button key={key} onClick={() => setFilter(key)}
                   style={filter === key ? STATUS_PILL_ACTIVE_STYLE[key] : STATUS_PILL_INACTIVE_STYLE[key]}
-                  className="px-3 py-1 rounded-full text-xs font-medium transition-colors border border-gray-200">
+                  className="px-3 py-1 rounded-full text-xs font-medium transition-colors border">
                   {STATUS_LABELS[key]}
                   {key !== 'all' && (
                     <span className="ml-1 opacity-60">{projects.filter((p: any) => p.status === key).length}</span>
