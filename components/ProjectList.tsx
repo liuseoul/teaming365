@@ -33,16 +33,18 @@ const STATUS_PILL_ACTIVE_STYLE: Record<string, CSSProperties> = {
   archived:  { ...PILL_BORDER, backgroundColor: '#9333ea', color: '#ffffff', borderColor: '#9333ea' },
 }
 
+// Inactive pill: teal-100/amber-100/blue-100/red-100/orange-100/purple-100 shades — clearly visible tint
 const STATUS_PILL_INACTIVE_STYLE: Record<string, CSSProperties> = {
-  all:       { ...PILL_BORDER, backgroundColor: '#ffffff', color: '#475569', borderColor: '#e5e7eb' },
-  active:    { ...PILL_BORDER, backgroundColor: '#f0fdfa', color: '#0f766e', borderColor: '#99f6e4' },
-  pending:   { ...PILL_BORDER, backgroundColor: '#fffbeb', color: '#b45309', borderColor: '#fde68a' },
-  completed: { ...PILL_BORDER, backgroundColor: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' },
-  cancelled: { ...PILL_BORDER, backgroundColor: '#fff5f5', color: '#dc2626', borderColor: '#fecaca' },
-  delayed:   { ...PILL_BORDER, backgroundColor: '#fff7ed', color: '#c2410c', borderColor: '#fed7aa' },
-  archived:  { ...PILL_BORDER, backgroundColor: '#faf5ff', color: '#7e22ce', borderColor: '#e9d5ff' },
+  all:       { ...PILL_BORDER, backgroundColor: '#f1f5f9', color: '#475569', borderColor: '#cbd5e1' },
+  active:    { ...PILL_BORDER, backgroundColor: '#ccfbf1', color: '#0f766e', borderColor: '#5eead4' },
+  pending:   { ...PILL_BORDER, backgroundColor: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' },
+  completed: { ...PILL_BORDER, backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#93c5fd' },
+  cancelled: { ...PILL_BORDER, backgroundColor: '#fee2e2', color: '#b91c1c', borderColor: '#fca5a5' },
+  delayed:   { ...PILL_BORDER, backgroundColor: '#ffedd5', color: '#c2410c', borderColor: '#fdba74' },
+  archived:  { ...PILL_BORDER, backgroundColor: '#f3e8ff', color: '#6b21a8', borderColor: '#d8b4fe' },
 }
 
+// List background: -50 shade — subtle tint behind the matter rows
 const STATUS_BG_STYLE: Record<string, CSSProperties> = {
   all:       { backgroundColor: '#f8fafc' },
   active:    { backgroundColor: '#f0fdfa' },
