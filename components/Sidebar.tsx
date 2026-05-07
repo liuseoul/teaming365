@@ -675,10 +675,11 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
             )
           })()}
 
-          {/* ── RIGHT PANEL — 38% ────────────────────────────── */}
-          <div className="w-[38%] bg-gray-50 border-l border-gray-200 flex flex-col flex-shrink-0 no-print">
+          {/* ── RIGHT PANEL — 38% — two side-by-side columns ── */}
+          <div className="w-[38%] bg-gray-50 border-l border-gray-200 flex flex-row flex-shrink-0 no-print">
 
-            {/* ── TODOS ──────────────────────────────────────── */}
+            {/* ── LEFT COLUMN: TODOS ─────────────────────────── */}
+            <div className="w-1/2 flex flex-col border-r border-gray-200 min-h-0 overflow-hidden">
             {(() => {
               const pendingTodos   = displaySidebarTodos.filter((t: any) => !t.completed)
               const completedTodos = displaySidebarTodos.filter((t: any) => t.completed)
@@ -686,7 +687,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
               const visiblePending   = pendingTodos.slice(0, 8)
               const morePending      = pendingTodos.length > 8
               return (
-            <div className="flex-1 min-h-0 flex flex-col bg-white border-b border-gray-200">
+            <div className="flex-1 min-h-0 flex flex-col bg-white">
               <div className="flex items-center gap-2 px-3 pt-3 pb-2 flex-shrink-0">
                 <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex-1">📝 Todos</span>
                 {pendingTodos.length > 0 && (
@@ -703,7 +704,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                   + Add
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto pb-2 space-y-0.5 w-4/5 mx-auto">
+              <div className="flex-1 overflow-y-auto pb-2 space-y-0.5 px-2">
                 {pendingTodos.length === 0 && completedTodos.length === 0 ? (
                   <p className="text-xs text-gray-400 text-center py-3">All clear ✓</p>
                 ) : null}
@@ -812,8 +813,10 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
             </div>
               )
             })()}
+            </div>{/* end left column */}
 
-            {/* ── SCHEDULE ───────────────────────────────────── */}
+            {/* ── RIGHT COLUMN: SCHEDULE ─────────────────────── */}
+            <div className="w-1/2 flex flex-col min-h-0 overflow-hidden">
             <div className="flex-1 min-h-0 flex flex-col">
               <div className="flex items-center gap-2 px-3 pt-3 pb-2 flex-shrink-0">
                 <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex-1">📅 Schedule</span>
@@ -949,6 +952,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
           </div>
         </div>
 
+            </div>{/* end right column */}
           </div>{/* end right panel */}
         </div>{/* end body */}
       </div>{/* end app shell */}
