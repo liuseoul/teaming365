@@ -20,34 +20,31 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_ORDER = ['all', 'active', 'pending', 'completed', 'cancelled', 'delayed', 'archived']
 
-// All class strings are complete literals — safelisted in tailwind.config.ts
-const PILL_ON: Record<string, string> = {
-  all:       'bg-slate-700 text-white border border-slate-700',
-  active:    'bg-teal-600  text-white border border-teal-600',
-  pending:   'bg-amber-500 text-white border border-amber-500',
-  completed: 'bg-blue-600  text-white border border-blue-600',
-  cancelled: 'bg-red-500   text-white border border-red-500',
-  delayed:   'bg-orange-500 text-white border border-orange-500',
-  archived:  'bg-purple-600 text-white border border-purple-600',
-}
-const PILL_OFF: Record<string, string> = {
-  all:       'bg-slate-100 text-slate-600 border border-slate-300',
-  active:    'bg-teal-100  text-teal-700  border border-teal-300',
-  pending:   'bg-amber-100 text-amber-800 border border-amber-300',
-  completed: 'bg-blue-100  text-blue-800  border border-blue-300',
-  cancelled: 'bg-red-100   text-red-800   border border-red-300',
-  delayed:   'bg-orange-100 text-orange-800 border border-orange-300',
-  archived:  'bg-purple-100 text-purple-800 border border-purple-300',
-}
-const LIST_BG: Record<string, string> = {
-  all:       'bg-gray-50',
-  active:    'bg-teal-50',
-  pending:   'bg-amber-50',
-  completed: 'bg-blue-50',
-  cancelled: 'bg-red-50',
-  delayed:   'bg-orange-50',
-  archived:  'bg-purple-50',
-}
+// Raw CSS injected at runtime — bypasses Tailwind JIT, purging, and edge-runtime quirks entirely.
+// Uses data-k (key) + data-on (selected) attribute selectors with !important.
+const PILL_CSS = `
+.sf-pill[data-k="all"][data-on="1"]       {background:#334155!important;color:#fff!important;border:1px solid #334155!important}
+.sf-pill[data-k="active"][data-on="1"]    {background:#0d9488!important;color:#fff!important;border:1px solid #0d9488!important}
+.sf-pill[data-k="pending"][data-on="1"]   {background:#f59e0b!important;color:#fff!important;border:1px solid #f59e0b!important}
+.sf-pill[data-k="completed"][data-on="1"] {background:#2563eb!important;color:#fff!important;border:1px solid #2563eb!important}
+.sf-pill[data-k="cancelled"][data-on="1"] {background:#ef4444!important;color:#fff!important;border:1px solid #ef4444!important}
+.sf-pill[data-k="delayed"][data-on="1"]   {background:#f97316!important;color:#fff!important;border:1px solid #f97316!important}
+.sf-pill[data-k="archived"][data-on="1"]  {background:#9333ea!important;color:#fff!important;border:1px solid #9333ea!important}
+.sf-pill[data-k="all"][data-on="0"]       {background:#f1f5f9!important;color:#475569!important;border:1px solid #cbd5e1!important}
+.sf-pill[data-k="active"][data-on="0"]    {background:#ccfbf1!important;color:#0f766e!important;border:1px solid #5eead4!important}
+.sf-pill[data-k="pending"][data-on="0"]   {background:#fef3c7!important;color:#92400e!important;border:1px solid #fcd34d!important}
+.sf-pill[data-k="completed"][data-on="0"] {background:#dbeafe!important;color:#1e40af!important;border:1px solid #93c5fd!important}
+.sf-pill[data-k="cancelled"][data-on="0"] {background:#fee2e2!important;color:#b91c1c!important;border:1px solid #fca5a5!important}
+.sf-pill[data-k="delayed"][data-on="0"]   {background:#ffedd5!important;color:#c2410c!important;border:1px solid #fdba74!important}
+.sf-pill[data-k="archived"][data-on="0"]  {background:#f3e8ff!important;color:#6b21a8!important;border:1px solid #d8b4fe!important}
+.sf-list[data-f="all"]       {background:#f8fafc!important}
+.sf-list[data-f="active"]    {background:#f0fdfa!important}
+.sf-list[data-f="pending"]   {background:#fffbeb!important}
+.sf-list[data-f="completed"] {background:#eff6ff!important}
+.sf-list[data-f="cancelled"] {background:#fff5f5!important}
+.sf-list[data-f="delayed"]   {background:#fff7ed!important}
+.sf-list[data-f="archived"]  {background:#faf5ff!important}
+`
 
 const ROW_COLORS = ['bg-white', 'bg-gray-50']
 
@@ -392,6 +389,8 @@ export default function ProjectList({
 
   return (
     <Sidebar profile={profile} groupId={groupId} groupName={groupName} subdomain={subdomain}>
+      {/* Inject pill + list-bg colors — raw CSS, bypasses all Tailwind processing */}
+      <style dangerouslySetInnerHTML={{ __html: PILL_CSS }} />
       <div className="flex flex-1 min-w-0 h-full overflow-hidden">
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* ── Unified toolbar ── */}
@@ -401,7 +400,8 @@ export default function ProjectList({
             <div className="flex items-center gap-1 flex-wrap">
               {STATUS_ORDER.map(key => (
                 <button key={key} onClick={() => setFilter(key)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer ${filter === key ? PILL_ON[key] : PILL_OFF[key]}`}>
+                  className="sf-pill px-3 py-1 rounded-full text-xs font-medium cursor-pointer"
+                  data-k={key} data-on={filter === key ? '1' : '0'}>
                   {STATUS_LABELS[key]}
                   {key !== 'all' && (
                     <span className="ml-1 opacity-60">{projects.filter((p: any) => p.status === key).length}</span>
@@ -446,7 +446,7 @@ export default function ProjectList({
         </div>
 
         {/* Matter list */}
-        <div className={`flex-1 overflow-y-auto px-6 py-4 space-y-2 ${LIST_BG[filter] || 'bg-gray-50'}`}>
+        <div className="sf-list flex-1 overflow-y-auto px-6 py-4 space-y-2" data-f={filter}>
           {filtered.length === 0 && (
             <div className="text-center py-16 text-gray-400">
               <div className="text-sm">No matters</div>
