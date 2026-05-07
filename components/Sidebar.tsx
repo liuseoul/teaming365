@@ -720,8 +720,10 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                         if (!isAdmin) { handleCompleteTodo(todo.id); return }
                         setActiveTodoId(isActive ? null : todo.id)
                       }}
-                      className={`flex items-start gap-2 px-2 py-1.5 rounded transition-colors
-                        ${isCompleting ? 'opacity-50 cursor-default' : isActive ? 'bg-slate-100 cursor-pointer' : 'hover:bg-slate-50 cursor-pointer'}`}>
+                      className={`flex items-start gap-2 px-2 py-1.5 rounded-lg border transition-colors
+                        ${isCompleting ? 'opacity-50 cursor-default border-gray-100 bg-gray-50'
+                          : isActive   ? 'border-slate-300 bg-slate-50 cursor-pointer'
+                          :              'border-gray-200 bg-white hover:border-slate-300 hover:shadow-sm cursor-pointer'}`}>
                       <button
                         onClick={e => { e.stopPropagation(); if (!isCompleting) handleCompleteTodo(todo.id) }}
                         disabled={isCompleting}
@@ -781,7 +783,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                       <div className="flex-1 h-px bg-gray-200" />
                     </div>
                     {completedTodos.map((todo: any) => (
-                      <div key={todo.id} className="flex items-start gap-2 px-2 py-1.5 rounded opacity-70">
+                      <div key={todo.id} className="flex items-start gap-2 px-2 py-1.5 rounded-lg border border-gray-100 bg-gray-50 opacity-70">
                         <span className="flex-shrink-0 mt-0.5 w-4 h-4 rounded-full bg-teal-500 flex items-center justify-center">
                           <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
