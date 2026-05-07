@@ -217,12 +217,8 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
       completed_at: new Date().toISOString(),
       completed_by_name: profile?.name || '',
     }).eq('id', id).eq('group_id', groupId)
-    // Show item with strikethrough for 3 seconds before removing
+    // Keep visible with strikethrough until page reload
     setJustCompletedIds(prev => new Set([...prev, id]))
-    setTimeout(() => {
-      setSidebarTodos(prev => prev.filter((t: any) => t.id !== id))
-      setJustCompletedIds(prev => { const s = new Set(prev); s.delete(id); return s })
-    }, 3000)
   }
 
   function memberInitials(name: string) {

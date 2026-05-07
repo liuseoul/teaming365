@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Sidebar from './Sidebar'
@@ -21,47 +21,35 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_ORDER = ['all', 'active', 'pending', 'completed', 'cancelled', 'delayed', 'archived']
 
 // Active pill style (selected)
-const STATUS_PILL_ACTIVE: Record<string, string> = {
-  all:       'bg-slate-700 text-white border-slate-700',
-  active:    'bg-teal-600 text-white border-teal-600',
-  pending:   'bg-amber-500 text-white border-amber-500',
-  completed: 'bg-blue-600 text-white border-blue-600',
-  cancelled: 'bg-red-500 text-white border-red-500',
-  delayed:   'bg-orange-500 text-white border-orange-500',
-  archived:  'bg-purple-600 text-white border-purple-600',
+// Inline styles — immune to Tailwind purging
+const STATUS_PILL_ACTIVE_STYLE: Record<string, CSSProperties> = {
+  all:       { backgroundColor: '#334155', color: '#fff', borderColor: '#334155' },
+  active:    { backgroundColor: '#0d9488', color: '#fff', borderColor: '#0d9488' },
+  pending:   { backgroundColor: '#f59e0b', color: '#fff', borderColor: '#f59e0b' },
+  completed: { backgroundColor: '#2563eb', color: '#fff', borderColor: '#2563eb' },
+  cancelled: { backgroundColor: '#ef4444', color: '#fff', borderColor: '#ef4444' },
+  delayed:   { backgroundColor: '#f97316', color: '#fff', borderColor: '#f97316' },
+  archived:  { backgroundColor: '#9333ea', color: '#fff', borderColor: '#9333ea' },
 }
 
-// Inactive pill hover style
-const STATUS_PILL_INACTIVE: Record<string, string> = {
-  all:       'text-slate-600 border-gray-200 hover:border-slate-400 hover:text-slate-800',
-  active:    'text-teal-700 border-gray-200 hover:border-teal-400 hover:text-teal-800',
-  pending:   'text-amber-700 border-gray-200 hover:border-amber-400 hover:text-amber-800',
-  completed: 'text-blue-700 border-gray-200 hover:border-blue-400 hover:text-blue-800',
-  cancelled: 'text-red-600 border-gray-200 hover:border-red-400 hover:text-red-700',
-  delayed:   'text-orange-600 border-gray-200 hover:border-orange-400 hover:text-orange-700',
-  archived:  'text-purple-700 border-gray-200 hover:border-purple-400 hover:text-purple-800',
+const STATUS_PILL_INACTIVE_STYLE: Record<string, CSSProperties> = {
+  all:       { color: '#475569' },
+  active:    { color: '#0f766e' },
+  pending:   { color: '#b45309' },
+  completed: { color: '#1d4ed8' },
+  cancelled: { color: '#dc2626' },
+  delayed:   { color: '#c2410c' },
+  archived:  { color: '#7e22ce' },
 }
 
-// Main content area tint when filter is active
-const STATUS_BG: Record<string, string> = {
-  all:       'bg-gray-50',
-  active:    'bg-teal-50/40',
-  pending:   'bg-amber-50/40',
-  completed: 'bg-blue-50/40',
-  cancelled: 'bg-red-50/30',
-  delayed:   'bg-orange-50/30',
-  archived:  'bg-purple-50/30',
-}
-
-// Row alternating colors per filter
-const STATUS_ROW_COLORS: Record<string, [string, string]> = {
-  all:       ['bg-white', 'bg-gray-50'],
-  active:    ['bg-white', 'bg-teal-50/30'],
-  pending:   ['bg-white', 'bg-amber-50/30'],
-  completed: ['bg-white', 'bg-blue-50/30'],
-  cancelled: ['bg-white', 'bg-red-50/20'],
-  delayed:   ['bg-white', 'bg-orange-50/20'],
-  archived:  ['bg-white', 'bg-purple-50/20'],
+const STATUS_BG_STYLE: Record<string, CSSProperties> = {
+  all:       { backgroundColor: '#f9fafb' },
+  active:    { backgroundColor: 'rgba(20,184,166,0.06)' },
+  pending:   { backgroundColor: 'rgba(245,158,11,0.06)' },
+  completed: { backgroundColor: 'rgba(37,99,235,0.06)' },
+  cancelled: { backgroundColor: 'rgba(239,68,68,0.05)' },
+  delayed:   { backgroundColor: 'rgba(249,115,22,0.05)' },
+  archived:  { backgroundColor: 'rgba(147,51,234,0.05)' },
 }
 
 const ROW_COLORS = ['bg-white', 'bg-gray-50']
@@ -416,10 +404,8 @@ export default function ProjectList({
             <div className="flex items-center gap-1 flex-wrap">
               {STATUS_ORDER.map(key => (
                 <button key={key} onClick={() => setFilter(key)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border
-                    ${filter === key
-                      ? STATUS_PILL_ACTIVE[key]
-                      : STATUS_PILL_INACTIVE[key]}`}>
+                  style={filter === key ? STATUS_PILL_ACTIVE_STYLE[key] : STATUS_PILL_INACTIVE_STYLE[key]}
+                  className="px-3 py-1 rounded-full text-xs font-medium transition-colors border border-gray-200">
                   {STATUS_LABELS[key]}
                   {key !== 'all' && (
                     <span className="ml-1 opacity-60">{projects.filter((p: any) => p.status === key).length}</span>
@@ -464,7 +450,8 @@ export default function ProjectList({
         </div>
 
         {/* Matter list */}
-        <div className={`flex-1 overflow-y-auto px-6 py-4 space-y-2 transition-colors ${STATUS_BG[filter] || 'bg-gray-50'}`}>
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 transition-colors"
+          style={STATUS_BG_STYLE[filter] || STATUS_BG_STYLE.all}>
           {filtered.length === 0 && (
             <div className="text-center py-16 text-gray-400">
               <div className="text-sm">No matters</div>
@@ -476,8 +463,7 @@ export default function ProjectList({
             const recordCount = (project.work_records || []).filter((r: any) => !r.deleted).length
             const hours       = calcHours(project.time_logs || [])
             const isSelected  = selectedId === project.id
-            const rowColors    = STATUS_ROW_COLORS[filter] || ROW_COLORS
-            const rowBg       = rowColors[index % 2]
+            const rowBg       = ROW_COLORS[index % 2]
             const latestAct   = getLatestActivity(project)
 
             return (
