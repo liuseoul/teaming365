@@ -12,6 +12,14 @@ const TAB_CSS = `
 .nav-tab { border-bottom: 1px solid #d1d5db; }
 .nav-tab[data-active="1"] { border-bottom: none; margin-bottom: -1px; z-index:10; font-weight:600; }
 
+.sf-content[data-page="today"]     {background:#e0f2fe!important}
+.sf-content[data-page="projects"]  {background:#e0e7ff!important}
+.sf-content[data-page="analytics"] {background:#fef9c3!important}
+.sf-content[data-page="invoice"]   {background:#d1fae5!important}
+.sf-content[data-page="mystats"]   {background:#ffe4e6!important}
+.sf-content[data-page="teamstats"] {background:#f3e8ff!important}
+.sf-content[data-page="admin"]     {background:#f1f5f9!important}
+
 .nav-tab[data-tab="today"][data-active="0"]      {background:#e0f2fe!important;color:#0369a1!important;border-color:#bae6fd!important}
 .nav-tab[data-tab="today"][data-active="1"]      {background:#0284c7!important;color:#fff!important;border-color:#0284c7!important}
 .nav-tab[data-tab="projects"][data-active="0"]   {background:#e0e7ff!important;color:#4338ca!important;border-color:#c7d2fe!important}
@@ -650,9 +658,22 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
         <div className="flex flex-1 min-h-0">
 
           {/* Main content (injected by page) — 62% */}
-          <div className="w-[62%] min-w-0 overflow-hidden flex-shrink-0">
-            {children}
-          </div>
+          {(() => {
+            const pageKey = pathname.includes('/dashboard') ? 'today'
+              : pathname.includes('/projects')   ? 'projects'
+              : pathname.includes('/analytics')  ? 'analytics'
+              : pathname.includes('/invoice')    ? 'invoice'
+              : pathname.includes('/my-stats')   ? 'mystats'
+              : pathname.includes('/team-stats') ? 'teamstats'
+              : pathname.includes('/admin')      ? 'admin'
+              : 'today'
+            return (
+              <div className="sf-content w-[62%] min-w-0 overflow-hidden flex-shrink-0"
+                data-page={pageKey}>
+                {children}
+              </div>
+            )
+          })()}
 
           {/* ── RIGHT PANEL — 38% ────────────────────────────── */}
           <div className="w-[38%] bg-gray-50 border-l border-gray-200 flex flex-col flex-shrink-0 no-print">
