@@ -399,16 +399,16 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
 
   // ── Nav links ─────────────────────────────────────────────
   const navLinks = [
-    { href: `/${subdomain}/dashboard`, label: 'Today',      icon: '🗓️' },
-    { href: `/${subdomain}/projects`,  label: 'Matters',    icon: '📋' },
+    { href: `/${subdomain}/projects`,   label: 'Matters',    icon: '📋' },
+    { href: `/${subdomain}/my-stats`,   label: 'My Stats',   icon: '📊' },
     ...(isAdmin ? [
-      { href: `/${subdomain}/admin`,   label: 'Admin',      icon: '⚙️' },
+      { href: `/${subdomain}/team-stats`, label: 'Team Stats', icon: '👥' },
     ] : []),
   ]
 
   return (
     <>
-      <div className="w-[320px] bg-white border-r border-gray-200 text-gray-900 flex flex-col h-full flex-shrink-0">
+      <div className="w-[384px] bg-white border-r border-gray-200 text-gray-900 flex flex-col h-full flex-shrink-0">
 
         {/* ── Logo ─────────────────────────────────────────── */}
         <button onClick={() => router.push(`/${subdomain}/dashboard`)}
@@ -583,7 +583,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
 
         {/* ── User footer ──────────────────────────────────── */}
         <div className="px-3 py-3 border-t border-slate-300 flex-shrink-0 bg-slate-200">
-          <div className="flex items-center gap-2 px-2 py-1">
+          <div className="flex items-center gap-2 px-2 py-1.5">
             {myGroups.length > 1 && (
               <button onClick={() => setShowGroupPicker(true)}
                 className="flex-shrink-0 px-2 py-1 text-xs font-medium rounded border border-gray-400 text-gray-600 hover:bg-gray-300 transition-colors">
@@ -597,6 +597,15 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
                   : profile?.role === 'second_admin' ? 'Secondary Admin' : 'Member'}
               </div>
             </div>
+            {isAdmin && (
+              <button onClick={() => router.push(`/${subdomain}/admin`)}
+                className={`flex-shrink-0 px-3 py-1 text-xs font-medium rounded border transition-colors
+                  ${pathname === `/${subdomain}/admin`
+                    ? 'bg-teal-700 text-white border-teal-700'
+                    : 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700'}`}>
+                Admin
+              </button>
+            )}
             <button onClick={handleLogout}
               className="flex-shrink-0 px-3 py-1 text-xs font-medium rounded border border-gray-400 text-gray-600 hover:bg-gray-300 transition-colors">
               Sign Out

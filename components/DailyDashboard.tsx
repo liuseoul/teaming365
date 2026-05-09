@@ -112,7 +112,7 @@ export default function DailyDashboard({
       <Sidebar profile={profile} groupId={groupId} groupName={groupName} subdomain={subdomain} />
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center gap-4 px-6 py-4 bg-teal-50 border-b border-teal-200 flex-shrink-0">
           <div>
             <h1 className="text-lg font-semibold text-gray-900">Today</h1>
             <p className="text-xs text-gray-400 mt-0.5">{dayLabel(today)}</p>

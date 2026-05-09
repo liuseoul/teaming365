@@ -394,57 +394,58 @@ export default function ProjectList({
       <style dangerouslySetInnerHTML={{ __html: PILL_CSS }} />
       <Sidebar profile={profile} groupId={groupId} groupName={groupName} subdomain={subdomain} />
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* ── Unified toolbar ── */}
-        <div className="bg-white border-b border-gray-200 flex-shrink-0">
-          <div className="flex items-center gap-2 px-4 py-2.5 flex-wrap">
-            {/* Status filter pills */}
-            <div className="flex items-center gap-1 flex-wrap">
-              {STATUS_ORDER.map(key => (
-                <button key={key} onClick={() => setFilter(key)}
-                  className="sf-pill px-3 py-1 rounded-full text-xs font-medium cursor-pointer"
-                  data-k={key} data-on={filter === key ? '1' : '0'}>
-                  {STATUS_LABELS[key]}
-                  {key !== 'all' && (
-                    <span className="ml-1 opacity-60">{projects.filter((p: any) => p.status === key).length}</span>
-                  )}
-                </button>
-              ))}
-            </div>
+        {/* ── Header + unified toolbar ── */}
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-100 border-b border-amber-200 flex-shrink-0 overflow-x-auto">
+          {/* Title + count */}
+          <h1 className="text-sm font-semibold text-gray-900 flex-shrink-0 mr-1">Matters</h1>
+          <span className="text-base font-bold text-teal-600 flex-shrink-0">{projects.length}</span>
+          <span className="w-px h-5 bg-amber-300 flex-shrink-0 mx-1" />
 
-            <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
-
-            {/* Action buttons */}
-            <button onClick={() => { setStatsStart(''); setStatsEnd(''); setShowProjStats(true) }}
-              className="px-3 py-1 rounded-full text-xs font-medium border border-gray-200 text-gray-600 hover:border-slate-400 hover:text-slate-800 transition-colors">
-              Stats
+          {/* Status filter pills */}
+          {STATUS_ORDER.map(key => (
+            <button key={key} onClick={() => setFilter(key)}
+              className="sf-pill px-3 py-1 rounded-full text-xs font-medium cursor-pointer flex-shrink-0"
+              data-k={key} data-on={filter === key ? '1' : '0'}>
+              {STATUS_LABELS[key]}
+              {key !== 'all' && (
+                <span className="ml-1 opacity-60">{projects.filter((p: any) => p.status === key).length}</span>
+              )}
             </button>
-            <button onClick={() => { setWeeklyData(null); setShowWeeklySummary(true) }}
-              className="px-3 py-1 rounded-full text-xs font-medium border border-gray-200 text-gray-600 hover:border-slate-400 hover:text-slate-800 transition-colors">
-              This Week
-            </button>
-            <button onClick={() => { setPendingSortMode(sortMode); setShowSortModal(true) }}
-              className="px-3 py-1 rounded-full text-xs font-medium border border-gray-200 text-gray-600 hover:border-slate-400 hover:text-slate-800 transition-colors">
-              Sort
-            </button>
+          ))}
 
-            {isAdmin && (
-              <button onClick={() => router.push(`/${subdomain}/admin`)}
-                className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-white hover:bg-slate-700 transition-colors">
-                <span>+</span><span>New matter</span>
-              </button>
-            )}
-          </div>
+          <span className="w-px h-5 bg-amber-300 flex-shrink-0 mx-1" />
 
-          {/* Due-today strip */}
-          {todayCount > 0 && (
-            <button onClick={() => setShowTodayModal(true)}
-              className="w-full text-xs text-amber-700 bg-amber-50 border-t border-amber-200 px-4 py-1.5 text-left hover:bg-amber-100 transition-colors">
-              Today &middot; {todayTodos.length > 0 && `${todayTodos.length} todo${todayTodos.length > 1 ? 's' : ''} due`}
-              {todayTodos.length > 0 && todayReminders.length > 0 && ' · '}
-              {todayReminders.length > 0 && `${todayReminders.length} event${todayReminders.length > 1 ? 's' : ''}`}
+          {/* Action buttons */}
+          <button onClick={() => { setStatsStart(''); setStatsEnd(''); setShowProjStats(true) }}
+            className="px-3 py-1 rounded-full text-xs font-medium border border-amber-300 text-amber-800 hover:bg-amber-200 transition-colors flex-shrink-0">
+            Stats
+          </button>
+          <button onClick={() => { setWeeklyData(null); setShowWeeklySummary(true) }}
+            className="px-3 py-1 rounded-full text-xs font-medium border border-amber-300 text-amber-800 hover:bg-amber-200 transition-colors flex-shrink-0">
+            This Week
+          </button>
+          <button onClick={() => { setPendingSortMode(sortMode); setShowSortModal(true) }}
+            className="px-3 py-1 rounded-full text-xs font-medium border border-amber-300 text-amber-800 hover:bg-amber-200 transition-colors flex-shrink-0">
+            Sort
+          </button>
+
+          {isAdmin && (
+            <button onClick={() => router.push(`/${subdomain}/admin`)}
+              className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-teal-700 text-white hover:bg-teal-800 transition-colors flex-shrink-0 ml-auto">
+              <span>+</span><span>New matter</span>
             </button>
           )}
         </div>
+
+        {/* Due-today strip */}
+        {todayCount > 0 && (
+          <button onClick={() => setShowTodayModal(true)}
+            className="w-full text-xs text-amber-700 bg-amber-50 border-b border-amber-200 px-4 py-1.5 text-left hover:bg-amber-100 transition-colors flex-shrink-0">
+            Today &middot; {todayTodos.length > 0 && `${todayTodos.length} todo${todayTodos.length > 1 ? 's' : ''} due`}
+            {todayTodos.length > 0 && todayReminders.length > 0 && ' · '}
+            {todayReminders.length > 0 && `${todayReminders.length} event${todayReminders.length > 1 ? 's' : ''}`}
+            </button>
+          )}
 
         {/* Matter list */}
         <div className="sf-list flex-1 overflow-y-auto px-6 py-4 space-y-2" data-f={filter}>
