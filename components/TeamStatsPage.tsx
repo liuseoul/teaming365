@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Sidebar from './Sidebar'
+import TodoPanel from './TodoPanel'
 import { StatsTable } from './StatsTable'
 import { useE2E } from '@/lib/useE2E'
 import { useGroupKey } from '@/lib/useGroupKey'
@@ -86,7 +87,8 @@ export default function TeamStatsPage({
   }
 
   return (
-    <Sidebar profile={profile} groupId={groupId} groupName={groupName} subdomain={subdomain}>
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar profile={profile} groupId={groupId} groupName={groupName} subdomain={subdomain} />
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-gray-50">
 
         {/* Header */}
@@ -158,6 +160,7 @@ export default function TeamStatsPage({
           </div>
         </div>
       </div>
-    </Sidebar>
+      <TodoPanel profile={profile} groupId={groupId} />
+    </div>
   )
 }

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Sidebar from './Sidebar'
 import ProjectDetailPanel from './ProjectDetailPanel'
+import TodoPanel from './TodoPanel'
 import { useE2E } from '@/lib/useE2E'
 import { useGroupKey } from '@/lib/useGroupKey'
 import { encField, decField } from '@/lib/e2e'
@@ -388,10 +389,10 @@ export default function ProjectList({
   const todayCount = todayTodos.length + todayReminders.length
 
   return (
-    <Sidebar profile={profile} groupId={groupId} groupName={groupName} subdomain={subdomain}>
+    <div className="flex h-screen overflow-hidden">
       {/* Inject pill + list-bg colors — raw CSS, bypasses all Tailwind processing */}
       <style dangerouslySetInnerHTML={{ __html: PILL_CSS }} />
-      <div className="flex flex-1 min-w-0 h-full overflow-hidden">
+      <Sidebar profile={profile} groupId={groupId} groupName={groupName} subdomain={subdomain} />
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* ── Unified toolbar ── */}
         <div className="bg-white border-b border-gray-200 flex-shrink-0">
@@ -530,7 +531,7 @@ export default function ProjectList({
           onClose={() => setSelectedId(null)}
         />
       )}
-      </div>{/* end flex-row wrapper */}
+      <TodoPanel profile={profile} groupId={groupId} />
 
       {/* ══ Edit Matter Modal ═══════════════════════════════════ */}
       {editProject && (
@@ -827,6 +828,6 @@ export default function ProjectList({
           </div>
         </div>
       )}
-    </Sidebar>
+    </div>
   )
 }

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Sidebar from './Sidebar'
+import TodoPanel from './TodoPanel'
 import { useE2E } from '@/lib/useE2E'
 import { useGroupKey } from '@/lib/useGroupKey'
 import {
@@ -412,7 +413,8 @@ export default function AdminDashboard({
   }
 
   return (
-    <Sidebar profile={profile} groupId={groupId} groupName={group.name} subdomain={subdomain}>
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar profile={profile} groupId={groupId} groupName={group.name} subdomain={subdomain} />
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <div className="flex items-center px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
           <h1 className="text-lg font-semibold text-gray-900">Admin</h1>
@@ -1037,6 +1039,7 @@ export default function AdminDashboard({
 
         </div>
       </div>
-    </Sidebar>
+      <TodoPanel profile={profile} groupId={groupId} />
+    </div>
   )
 }

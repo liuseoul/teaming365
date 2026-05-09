@@ -2,6 +2,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Sidebar from './Sidebar'
+import TodoPanel from './TodoPanel'
 import { useE2E } from '@/lib/useE2E'
 import { useGroupKey } from '@/lib/useGroupKey'
 import { decField } from '@/lib/e2e'
@@ -94,7 +95,7 @@ export default function InvoiceView({
   const firmName = group.firm_name_en || group.firm_name_cn || group.name
 
   return (
-    <Sidebar profile={profile} groupId={groupId} groupName={group.name} subdomain={subdomain}>
+    <div className="flex h-screen overflow-hidden">
       <style>{`
         @media print {
           .no-print { display: none !important; }
@@ -103,7 +104,7 @@ export default function InvoiceView({
           @page { margin: 20mm; }
         }
       `}</style>
-
+      <Sidebar profile={profile} groupId={groupId} groupName={group.name} subdomain={subdomain} />
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-gray-50">
         {/* Controls (hidden on print) */}
         <div className="no-print flex items-center gap-4 px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
@@ -317,6 +318,7 @@ export default function InvoiceView({
           )}
         </div>
       </div>
-    </Sidebar>
+      <TodoPanel profile={profile} groupId={groupId} />
+    </div>
   )
 }

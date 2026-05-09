@@ -7,42 +7,11 @@ import { useE2E } from '@/lib/useE2E'
 import { useGroupKey } from '@/lib/useGroupKey'
 import { encField, decField } from '@/lib/e2e'
 
-// Injected at runtime — each nav tab gets its own color, clean folder-tab borders
-const TAB_CSS = `
-.nav-tab { border-bottom: 1px solid #d1d5db; }
-.nav-tab[data-active="1"] { border-bottom: none; margin-bottom: -1px; z-index:10; font-weight:600; }
-
-.sf-content[data-page="today"]     {background:#e0f2fe!important}
-.sf-content[data-page="projects"]  {background:#e0e7ff!important}
-.sf-content[data-page="analytics"] {background:#fef9c3!important}
-.sf-content[data-page="invoice"]   {background:#d1fae5!important}
-.sf-content[data-page="mystats"]   {background:#ffe4e6!important}
-.sf-content[data-page="teamstats"] {background:#f3e8ff!important}
-.sf-content[data-page="admin"]     {background:#f1f5f9!important}
-
-.nav-tab[data-tab="today"][data-active="0"]      {background:#e0f2fe!important;color:#0369a1!important;border-color:#bae6fd!important}
-.nav-tab[data-tab="today"][data-active="1"]      {background:#0284c7!important;color:#fff!important;border-color:#0284c7!important}
-.nav-tab[data-tab="projects"][data-active="0"]   {background:#e0e7ff!important;color:#4338ca!important;border-color:#c7d2fe!important}
-.nav-tab[data-tab="projects"][data-active="1"]   {background:#4f46e5!important;color:#fff!important;border-color:#4f46e5!important}
-.nav-tab[data-tab="analytics"][data-active="0"]  {background:#fef9c3!important;color:#a16207!important;border-color:#fde68a!important}
-.nav-tab[data-tab="analytics"][data-active="1"]  {background:#ca8a04!important;color:#fff!important;border-color:#ca8a04!important}
-.nav-tab[data-tab="invoice"][data-active="0"]    {background:#d1fae5!important;color:#065f46!important;border-color:#a7f3d0!important}
-.nav-tab[data-tab="invoice"][data-active="1"]    {background:#059669!important;color:#fff!important;border-color:#059669!important}
-.nav-tab[data-tab="mystats"][data-active="0"]    {background:#ffe4e6!important;color:#9f1239!important;border-color:#fecdd3!important}
-.nav-tab[data-tab="mystats"][data-active="1"]    {background:#e11d48!important;color:#fff!important;border-color:#e11d48!important}
-.nav-tab[data-tab="teamstats"][data-active="0"]  {background:#f3e8ff!important;color:#6b21a8!important;border-color:#e9d5ff!important}
-.nav-tab[data-tab="teamstats"][data-active="1"]  {background:#9333ea!important;color:#fff!important;border-color:#9333ea!important}
-.nav-tab[data-tab="admin"][data-active="0"]      {background:#f1f5f9!important;color:#475569!important;border-color:#e2e8f0!important}
-.nav-tab[data-tab="admin"][data-active="1"]      {background:#334155!important;color:#fff!important;border-color:#334155!important}
-`
-
 const TYPE_LABELS: Record<string, string> = {
-  // ── Legal ─────────────────────────────────────────────────
   court_hearing:          'Court Hearing',
   filing_deadline:        'Filing Deadline',
   consultation:           'Legal Consultation',
   statute_of_limitations: 'Limitation Period',
-  // ── General ───────────────────────────────────────────────
   online_meeting:         'Online Meeting',
   visiting:               'Client Visit',
   business_travel:        'Business Trip',
@@ -86,7 +55,6 @@ type Reminder = {
   deleted_at: string | null
   assigned_to_name: string | null
   pre_alert_days: number[]
-  profiles?: { name: string }
 }
 
 type GroupInfo = { id: string; name: string }
@@ -96,9 +64,9 @@ interface SidebarProps {
   groupId: string
   groupName: string
   subdomain: string
-  children?: React.ReactNode
 }
 
+// ── Pure helpers ──────────────────────────────────────────────
 function fmtTime(t: string | null) { return t ? t.slice(0, 5) : '' }
 function remPrimaryDate(r: Reminder) { return r.start_date || r.due_date }
 function remEndDate(r: Reminder)     { return r.end_date || r.start_date || r.due_date }
@@ -115,15 +83,7 @@ function remFullDateLabel(r: Reminder, today: string) {
   return sd === ed ? (sd === today ? 'Today · ' : '') + fmt(sd) : fmt(sd) + ' – ' + fmt(ed)
 }
 
-function reminderUrgencyDot(primaryDate: string, today: string): string {
-  if (primaryDate < today)   return 'bg-red-500'
-  if (primaryDate === today) return 'bg-amber-400'
-  const diff = (new Date(primaryDate).getTime() - new Date(today).getTime()) / 86400000
-  if (diff <= 3)             return 'bg-yellow-400'
-  return 'bg-teal-400'
-}
-
-export default function Sidebar({ profile, groupId, groupName, subdomain, children }: SidebarProps) {
+export default function Sidebar({ profile, groupId, groupName, subdomain }: SidebarProps) {
   const router   = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
@@ -132,19 +92,20 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
   const { keyPair } = useE2E(profile?.id || null)
   const groupKey = useGroupKey(profile?.id || null, groupId, keyPair)
 
-  const isAdmin    = ['first_admin', 'second_admin'].includes(profile?.role || '')
-  const todayStr   = new Date().toISOString().split('T')[0]
-  const today      = new Date().toISOString().slice(0, 10)
+  const isAdmin  = ['first_admin', 'second_admin'].includes(profile?.role || '')
+  const todayStr = new Date().toISOString().split('T')[0]
 
-  const [currentUserId,   setCurrentUserId]   = useState<string | null>(null)
-  const [reminders,       setReminders]       = useState<Reminder[]>([])
+  const [currentUserId,    setCurrentUserId]    = useState<string | null>(null)
+  const [reminders,        setReminders]        = useState<Reminder[]>([])
   const [displayReminders, setDisplayReminders] = useState<Reminder[]>([])
-  const [members,         setMembers]         = useState<Member[]>([])
-  const [myGroups,        setMyGroups]        = useState<GroupInfo[]>([])
-  const [showGroupPicker, setShowGroupPicker] = useState(false)
-  const [showAllUpcoming, setShowAllUpcoming] = useState(false)
-  const [showAllRem,      setShowAllRem]      = useState(false)
+  const [members,          setMembers]          = useState<Member[]>([])
+  const [myGroups,         setMyGroups]         = useState<GroupInfo[]>([])
+  const [showGroupPicker,  setShowGroupPicker]  = useState(false)
+  const [showAllUpcoming,  setShowAllUpcoming]  = useState(false)
+  const [showAllRem,       setShowAllRem]       = useState(false)
+  const [showCourtDates,   setShowCourtDates]   = useState(true)
 
+  // ── Add reminder form ─────────────────────────────────────
   const [showAddRem,   setShowAddRem]   = useState(false)
   const [remType,      setRemType]      = useState('others')
   const [remStartDate, setRemStartDate] = useState(todayStr)
@@ -156,35 +117,18 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
   const [remPreAlerts, setRemPreAlerts] = useState<number[]>([])
   const [remSaving,    setRemSaving]    = useState(false)
 
-  const [selectedRem, setSelectedRem] = useState<Reminder | null>(null)
-  const [detailMode,  setDetailMode]  = useState<'view' | 'edit'>('view')
-  const [editType,       setEditType]       = useState('others')
-  const [editStartDate,  setEditStartDate]  = useState(todayStr)
-  const [editEndDate_,   setEditEndDate_]   = useState(todayStr)
-  const [editStartTime,  setEditStartTime]  = useState('')
-  const [editEndTime,    setEditEndTime]    = useState('')
-  const [editContent,    setEditContent]    = useState('')
-  const [editAssigned,   setEditAssigned]   = useState('')
-  const [editPreAlerts,  setEditPreAlerts]  = useState<number[]>([])
-  const [editSaving,     setEditSaving]     = useState(false)
-  const [showCourtDates, setShowCourtDates] = useState(true)
-
-  const [showUserMenu,          setShowUserMenu]          = useState(false)
-  const [sidebarTodos,          setSidebarTodos]          = useState<any[]>([])
-  const [displaySidebarTodos,   setDisplaySidebarTodos]   = useState<any[]>([])
-  const [showAllTodos,          setShowAllTodos]          = useState(false)
-  const [showAddTodo,           setShowAddTodo]           = useState(false)
-  const [newTodoContent,        setNewTodoContent]        = useState('')
-  const [newTodoAssignee,       setNewTodoAssignee]       = useState('')
-  const [newTodoDueDate,        setNewTodoDueDate]        = useState('')
-  const [todoSaving,            setTodoSaving]            = useState(false)
-  const [activeTodoId,          setActiveTodoId]          = useState<string | null>(null)
-  const [completingIds,         setCompletingIds]         = useState<Set<string>>(new Set())
-  const [editTodoId,            setEditTodoId]            = useState<string | null>(null)
-  const [editTodoContent,       setEditTodoContent]       = useState('')
-  const [editTodoAssignee,      setEditTodoAssignee]      = useState('')
-  const [editTodoDueDate,       setEditTodoDueDate]       = useState('')
-  const [editTodoSaving,        setEditTodoSaving]        = useState(false)
+  // ── Detail / edit modal ───────────────────────────────────
+  const [selectedRem,    setSelectedRem]   = useState<Reminder | null>(null)
+  const [detailMode,     setDetailMode]    = useState<'view' | 'edit'>('view')
+  const [editType,       setEditType]      = useState('others')
+  const [editStartDate,  setEditStartDate] = useState(todayStr)
+  const [editEndDate_,   setEditEndDate_]  = useState(todayStr)
+  const [editStartTime,  setEditStartTime] = useState('')
+  const [editEndTime,    setEditEndTime]   = useState('')
+  const [editContent,    setEditContent]   = useState('')
+  const [editAssigned,   setEditAssigned]  = useState('')
+  const [editPreAlerts,  setEditPreAlerts] = useState<number[]>([])
+  const [editSaving,     setEditSaving]    = useState(false)
 
   useEffect(() => {
     const uid = profile?.id || null
@@ -192,124 +136,29 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
     if (uid) loadMyGroups(uid)
     loadReminders()
     loadMembers()
-    loadSidebarTodos()
   }, [groupId])
 
   useEffect(() => {
-    setDisplaySidebarTodos(sidebarTodos.map((t: any) => ({
-      ...t,
-      content: decField(t.content, groupKey) || t.content,
-    })))
-  }, [sidebarTodos, groupKey])
-
-  // Close user menu when clicking outside
-  useEffect(() => {
-    if (!showUserMenu) return
-    function handler() { setShowUserMenu(false) }
-    document.addEventListener('click', handler)
-    return () => document.removeEventListener('click', handler)
-  }, [showUserMenu])
-
-  async function addSidebarTodo() {
-    if (!newTodoContent.trim()) return
-    setTodoSaving(true)
-    const { error } = await supabase.from('todos').insert({
-      content: encField(newTodoContent.trim(), groupKey) ?? newTodoContent.trim(),
-      assignee_abbrev: newTodoAssignee.trim() || null,
-      due_date: newTodoDueDate || null,
-      group_id: groupId,
-      completed: false,
-      deleted: false,
-    })
-    setTodoSaving(false)
-    if (error) { alert('Failed: ' + error.message); return }
-    setShowAddTodo(false); setNewTodoContent(''); setNewTodoAssignee(''); setNewTodoDueDate('')
-    await loadSidebarTodos()
-  }
-
-  async function loadSidebarTodos() {
-    const { data } = await supabase
-      .from('todos')
-      .select('id, content, assignee_abbrev, due_date, completed, completed_at, completed_by_name')
-      .eq('group_id', groupId)
-      .eq('deleted', false)
-      .order('created_at', { ascending: false })
-    setSidebarTodos(data || [])
-  }
-
-  async function completeSidebarTodo(id: string) {
-    await supabase.from('todos').update({
-      completed: true,
-      completed_at: new Date().toISOString(),
-      completed_by_name: profile?.name || '',
-    }).eq('id', id).eq('group_id', groupId)
-    await loadSidebarTodos()
-  }
-
-  function memberInitials(name: string) {
-    return name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 3)
-  }
-
-  async function handleCompleteTodo(id: string) {
-    setCompletingIds(prev => new Set([...prev, id]))
-    await completeSidebarTodo(id)
-    setCompletingIds(prev => { const s = new Set(prev); s.delete(id); return s })
-  }
-
-  async function deleteTodo(id: string) {
-    await supabase.from('todos').update({ deleted: true }).eq('id', id).eq('group_id', groupId)
-    setSidebarTodos(prev => prev.filter((t: any) => t.id !== id))
-    setActiveTodoId(null)
-  }
-
-  function openEditTodo(todo: any) {
-    setEditTodoId(todo.id)
-    setEditTodoContent(todo.content)
-    setEditTodoAssignee(todo.assignee_abbrev || '')
-    setEditTodoDueDate(todo.due_date || '')
-    setActiveTodoId(null)
-  }
-
-  async function saveEditTodo() {
-    if (!editTodoId || !editTodoContent.trim()) return
-    setEditTodoSaving(true)
-    await supabase.from('todos').update({
-      content: encField(editTodoContent.trim(), groupKey) ?? editTodoContent.trim(),
-      assignee_abbrev: editTodoAssignee || null,
-      due_date: editTodoDueDate || null,
-    }).eq('id', editTodoId).eq('group_id', groupId)
-    setEditTodoSaving(false)
-    setEditTodoId(null)
-    await loadSidebarTodos()
-  }
+    setDisplayReminders(reminders.map(r => ({ ...r, content: decField(r.content, groupKey) || r.content })))
+  }, [reminders, groupKey])
 
   async function loadReminders() {
     const { data, error } = await supabase
-      .from('reminders')
-      .select('*')
-      .eq('group_id', groupId)
-      .order('due_date', { ascending: true })
+      .from('reminders').select('*')
+      .eq('group_id', groupId).order('due_date', { ascending: true })
     if (!error) setReminders(data || [])
   }
 
-  useEffect(() => {
-    setDisplayReminders(reminders.map(r => ({ ...r, content: decField(r.content, groupKey) })))
-  }, [reminders, groupKey])
-
   async function loadMembers() {
     const { data } = await supabase
-      .from('group_members')
-      .select('profiles(id, name)')
-      .eq('group_id', groupId)
+      .from('group_members').select('profiles(id, name)').eq('group_id', groupId)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setMembers((data || []).map((m: any) => ({ id: m.profiles?.id || '', name: m.profiles?.name || '' })).filter(m => m.id))
   }
 
   async function loadMyGroups(userId: string) {
     const { data } = await supabase
-      .from('group_members')
-      .select('groups(id, name)')
-      .eq('user_id', userId)
+      .from('group_members').select('groups(id, name)').eq('user_id', userId)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setMyGroups((data || []).map((m: any) => ({ id: m.groups?.id || '', name: m.groups?.name || '' })).filter(g => g.id))
   }
@@ -317,7 +166,6 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
   async function switchGroup(gid: string) {
     document.cookie = `qt_group=${gid}; path=/; max-age=86400; SameSite=Lax`
     setShowGroupPicker(false)
-    // Look up the subdomain for the new group
     const { data: grp } = await supabase.from('groups').select('subdomain').eq('id', gid).single()
     if (grp?.subdomain) {
       router.push(`/${grp.subdomain}/projects`)
@@ -327,6 +175,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
     router.refresh()
   }
 
+  // ── Reminder partitions ───────────────────────────────────
   const upcoming = displayReminders
     .filter(r => !r.deleted && remEndDate(r) >= todayStr)
     .sort((a, b) => remPrimaryDate(a).localeCompare(remPrimaryDate(b)))
@@ -340,6 +189,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
   const visibleUpcoming = showAllUpcoming ? upcoming : upcoming.slice(0, MAX_UPCOMING)
   const hasMoreUpcoming = !showAllUpcoming && upcoming.length > MAX_UPCOMING
 
+  // ── Save new reminder ────────────────────────────────────
   async function saveReminder() {
     if (!remStartDate || !remEndDate_ || !remContent.trim()) { alert('Please fill in all required fields'); return }
     if (remEndDate_ < remStartDate) { alert('End date cannot be before start date'); return }
@@ -351,8 +201,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
       start_time: remStartTime || null, end_time: remEndTime || null,
       assigned_to_name: remAssigned || null,
       pre_alert_days: remPreAlerts,
-      group_id: groupId,
-      created_by: profile!.id,
+      group_id: groupId, created_by: profile!.id,
     })
     if (error) { alert('Save failed: ' + error.message) }
     else { setShowAddRem(false); resetAddForm(); await loadReminders() }
@@ -361,8 +210,8 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
 
   function resetAddForm() {
     setRemContent(''); setRemStartDate(todayStr); setRemEndDate_(todayStr)
-    setRemType('others'); setRemStartTime(''); setRemEndTime(''); setRemAssigned('')
-    setRemPreAlerts([])
+    setRemType('others'); setRemStartTime(''); setRemEndTime('')
+    setRemAssigned(''); setRemPreAlerts([])
   }
 
   function openDetailRem(r: Reminder) { setSelectedRem(r); setDetailMode('view') }
@@ -389,8 +238,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
       due_date: editStartDate, start_date: editStartDate, end_date: editEndDate_,
       content: encField(editContent.trim(), groupKey) ?? editContent.trim(), type: editType,
       start_time: editStartTime || null, end_time: editEndTime || null,
-      assigned_to_name: editAssigned || null,
-      pre_alert_days: editPreAlerts,
+      assigned_to_name: editAssigned || null, pre_alert_days: editPreAlerts,
     }).eq('id', selectedRem!.id).eq('group_id', groupId)
     setEditSaving(false)
     if (error) { alert('Save failed: ' + error.message); return }
@@ -430,7 +278,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
     router.refresh()
   }
 
-  // ── Inner render helpers ──────────────────────────────────
+  // ── Inner helpers (defined inside component — no inputs, safe) ──
   function TypeGrid({ current, onSet }: { current: string; onSet: (v: string) => void }) {
     return (
       <div className="grid grid-cols-2 gap-2">
@@ -506,335 +354,114 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
     const dateLabel = remDateLabel(r)
     const rowBg     = variant === 'upcoming' ? (isToday ? '' : ROW_BG[index % 2]) : ''
     const cls =
-      variant === 'upcoming' && isToday ? 'bg-amber-50 border-amber-300 hover:bg-amber-100'
-      : variant === 'upcoming'          ? `${rowBg} border-gray-200 hover:border-teal-300 hover:bg-teal-50/40`
-      : variant === 'past'              ? 'bg-gray-50 border-gray-100 opacity-60 hover:opacity-80'
-      : 'bg-red-50/40 border-red-100 opacity-50 hover:opacity-70'
-
-    // Feature 15 — countdown days
-    const daysUntil = variant === 'upcoming' && !isToday
-      ? Math.ceil((new Date(primDate).getTime() - new Date(todayStr).getTime()) / 86400000)
-      : null
-    const isPreAlertDay = daysUntil !== null && (r.pre_alert_days || []).includes(daysUntil)
-
+      variant === 'upcoming' && isToday ? 'bg-amber-50 border-amber-400 hover:bg-amber-100'
+      : variant === 'upcoming'          ? `${rowBg} border-gray-400 hover:border-teal-500 hover:bg-teal-50/40`
+      : variant === 'past'              ? 'bg-gray-50 border-gray-300 opacity-60 hover:opacity-80'
+      : 'bg-red-50/40 border-red-300 opacity-50 hover:opacity-70'
     return (
       <button onClick={() => openDetailRem(r)}
         className={`w-full text-left flex items-start gap-2 px-2 py-2 rounded-lg border transition-all ${cls}`}>
-        {variant === 'upcoming' && (
-          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${reminderUrgencyDot(primDate, today)}`} />
-        )}
-        <span className={`text-xs font-bold mt-0.5 flex-shrink-0 min-w-9
-          ${variant === 'upcoming' && isToday ? 'text-amber-600' : variant === 'upcoming' ? 'text-teal-600' : 'text-gray-400'}`}>
-          {dateLabel}
-        </span>
+        <div className="flex flex-col items-start flex-shrink-0 min-w-9 mt-0.5">
+          <span className={`text-xs font-bold leading-tight
+            ${variant === 'upcoming' && isToday ? 'text-amber-600' : variant === 'upcoming' ? 'text-teal-600' : 'text-gray-400'}`}>
+            {dateLabel}
+          </span>
+          {variant === 'upcoming' && r.start_time && (
+            <span className="text-[10px] text-gray-400 leading-tight mt-0.5">
+              {fmtTime(r.start_time)}{r.end_time ? `–${fmtTime(r.end_time)}` : ''}
+            </span>
+          )}
+        </div>
         <div className="min-w-0 flex-1">
-          <span className={`text-sm leading-snug line-clamp-2 block
+          <span className={`text-sm leading-snug
             ${variant === 'deleted' ? 'line-through text-gray-400'
             : variant === 'past'    ? 'line-through text-gray-500'
             : isToday               ? 'text-amber-800 font-medium'
             : 'text-gray-800'}`}>
             {r.content}
           </span>
-          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-            {variant === 'upcoming' && r.type && r.type !== 'others' && (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${TYPE_COLORS[r.type] || TYPE_COLORS.others}`}>
-                {TYPE_LABELS[r.type] || r.type}
-              </span>
-            )}
-            {/* Feature 15 — countdown badge */}
-            {daysUntil !== null && (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full
-                ${isPreAlertDay ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-300'
-                  : daysUntil <= 7 ? 'bg-rose-50 text-rose-500'
-                  : 'bg-gray-100 text-gray-400'}`}>
-                {isPreAlertDay ? `⚡ ${daysUntil}d` : `${daysUntil}d`}
-              </span>
-            )}
-            {variant === 'upcoming' && r.assigned_to_name && (
-              <span className="text-[10px] text-indigo-500 font-medium">@{r.assigned_to_name}</span>
-            )}
-            {variant === 'upcoming' && r.start_time && (
-              <span className="text-[10px] text-gray-400">
-                {fmtTime(r.start_time)}{r.end_time ? `–${fmtTime(r.end_time)}` : ''}
-              </span>
-            )}
-            {variant === 'past'    && <span className="text-[10px] text-gray-400">Past</span>}
-            {variant === 'deleted' && r.deleted_by_name && (
-              <span className="text-[10px] text-red-400">Deleted · {r.deleted_by_name}</span>
-            )}
-          </div>
+          {variant === 'upcoming' && r.type && r.type !== 'others' && (
+            <span className={`ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded align-middle ${TYPE_COLORS[r.type] || TYPE_COLORS.others}`}>
+              {TYPE_LABELS[r.type] || r.type}
+            </span>
+          )}
+          {variant === 'upcoming' && r.assigned_to_name && (
+            <span className="ml-1.5 text-[10px] text-indigo-500 font-medium align-middle">@{r.assigned_to_name}</span>
+          )}
+          {variant === 'past'    && <span className="ml-1.5 text-[10px] text-gray-400 align-middle">Past</span>}
+          {variant === 'deleted' && r.deleted_by_name && (
+            <span className="ml-1.5 text-[10px] text-red-400 align-middle">Deleted · {r.deleted_by_name}</span>
+          )}
         </div>
       </button>
     )
   }
 
+  // ── Nav links ─────────────────────────────────────────────
+  const navLinks = [
+    { href: `/${subdomain}/dashboard`, label: 'Today',      icon: '🗓️' },
+    { href: `/${subdomain}/projects`,  label: 'Matters',    icon: '📋' },
+    { href: `/${subdomain}/my-stats`,  label: 'My Stats',   icon: '📈' },
+    ...(isAdmin ? [
+      { href: `/${subdomain}/analytics`, label: 'Analytics',  icon: '📊' },
+      { href: `/${subdomain}/invoice`,   label: 'Invoice',    icon: '🧾' },
+      { href: `/${subdomain}/team-stats`,label: 'Team Stats', icon: '👥' },
+      { href: `/${subdomain}/admin`,     label: 'Admin',      icon: '⚙️' },
+    ] : []),
+  ]
+
   return (
     <>
-      <div className="flex flex-col h-screen overflow-hidden">
+      <div className="w-[320px] bg-white border-r border-gray-200 text-gray-900 flex flex-col h-full flex-shrink-0">
 
-        {/* ── TOP NAVIGATION BAR ──────────────────────────────── */}
-        <style dangerouslySetInnerHTML={{ __html: TAB_CSS }} />
-        <header className="bg-white border-b border-gray-200 flex-shrink-0 z-20 no-print">
-
-          {/* ── Single row: tabs + admin tab + avatar ── */}
-          <div className="flex items-end px-3">
-          {/* Scrollable tabs */}
-          <div className="flex items-end gap-0.5 overflow-x-auto flex-1 min-w-0 no-scrollbar">
-            {[
-              { href: `/${subdomain}/dashboard`, label: 'Today',      icon: '🗓️', tab: 'today'     },
-              { href: `/${subdomain}/projects`,  label: 'Matters',    icon: '📋', tab: 'projects'  },
-              { href: `/${subdomain}/analytics`, label: 'Analytics',  icon: '📊', tab: 'analytics', adminOnly: true },
-              { href: `/${subdomain}/invoice`,   label: 'Invoice',    icon: '🧾', tab: 'invoice',   adminOnly: true },
-              { href: `/${subdomain}/my-stats`,  label: 'My Stats',   icon: '📈', tab: 'mystats'   },
-              { href: `/${subdomain}/team-stats`,label: 'Team Stats', icon: '👥', tab: 'teamstats', adminOnly: true },
-            ]
-              .filter(item => !item.adminOnly || isAdmin)
-              .map(item => {
-                const isActive = pathname === item.href
-                return (
-                  <button key={item.label}
-                    onClick={() => router.push(item.href)}
-                    data-tab={item.tab}
-                    data-active={isActive ? '1' : '0'}
-                    className="nav-tab flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-t-md border whitespace-nowrap flex-shrink-0">
-                    <span className="text-sm leading-none">{item.icon}</span>
-                    <span>{item.label}</span>
-                  </button>
-                )
-              })}
-
-            {/* Admin tab */}
-            {isAdmin && (
-              <button onClick={() => router.push(`/${subdomain}/admin`)}
-                data-tab="admin"
-                data-active={pathname === `/${subdomain}/admin` ? '1' : '0'}
-                className="nav-tab flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium rounded-t-md border whitespace-nowrap flex-shrink-0">
-                <span className="text-sm leading-none">⚙️</span>
-                <span>Admin</span>
-              </button>
-            )}
-
-          </div>{/* end scrollable tabs */}
-          {/* Fixed right controls — outside overflow container so dropdown isn't clipped */}
-          <div className="flex items-center gap-1.5 flex-shrink-0 pb-1 pl-2">
-            {/* Group switcher */}
-            {myGroups.length > 1 && (
-              <button onClick={() => setShowGroupPicker(true)}
-                className="flex items-center gap-1 px-2 py-1.5 mb-1 rounded text-xs text-gray-500 hover:bg-gray-100 transition-colors border border-gray-200 flex-shrink-0 self-center">
-                🔀 <span className="hidden lg:inline">Switch</span>
-              </button>
-            )}
-
-            {/* User avatar + dropdown */}
-            <div className="relative self-center mb-1 flex-shrink-0">
-              <button onClick={e => { e.stopPropagation(); setShowUserMenu(v => !v) }}
-                className="flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded hover:bg-gray-100 transition-colors">
-                <div className="w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
-                  {(profile?.name || 'U').charAt(0).toUpperCase()}
-                </div>
-                <span className="text-xs font-medium text-gray-700 hidden sm:inline max-w-24 truncate">{profile?.name}</span>
-              </button>
-              {showUserMenu && (
-                <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-50">
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <div className="text-sm font-semibold text-gray-900">{profile?.name}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {profile?.role === 'first_admin' ? 'Primary Admin'
-                        : profile?.role === 'second_admin' ? 'Secondary Admin' : 'Member'}
-                    </div>
-                  </div>
-                  <button onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors">
-                    <span>🚪</span><span>Sign out</span>
-                  </button>
-                </div>
-              )}
+        {/* ── Logo ─────────────────────────────────────────── */}
+        <button onClick={() => router.push(`/${subdomain}/dashboard`)}
+          className="px-4 py-3 border-b border-teal-200 flex-shrink-0 w-full text-left bg-teal-100 hover:bg-teal-200 transition-colors">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 bg-teal-600 rounded-md flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+              {(groupName || 'T').charAt(0).toUpperCase()}
             </div>
-          </div>{/* end fixed right */}
-          </div>{/* end single row */}
-        </header>
+            <div className="text-sm font-semibold text-gray-900 leading-tight truncate">{groupName}</div>
+          </div>
+        </button>
 
-        {/* ── BODY ─────────────────────────────────────────────── */}
-        <div className="flex flex-1 min-h-0">
-
-          {/* Main content (injected by page) — 62% */}
-          {(() => {
-            const pageKey = pathname.includes('/dashboard') ? 'today'
-              : pathname.includes('/projects')   ? 'projects'
-              : pathname.includes('/analytics')  ? 'analytics'
-              : pathname.includes('/invoice')    ? 'invoice'
-              : pathname.includes('/my-stats')   ? 'mystats'
-              : pathname.includes('/team-stats') ? 'teamstats'
-              : pathname.includes('/admin')      ? 'admin'
-              : 'today'
+        {/* ── Navigation ───────────────────────────────────── */}
+        <nav className="px-3 py-2 space-y-0.5 border-b border-gray-200 flex-shrink-0">
+          {navLinks.map(link => {
+            const isActive = pathname === link.href
             return (
-              <div className="sf-content w-[62%] min-w-0 overflow-hidden flex-shrink-0"
-                data-page={pageKey}>
-                {children}
-              </div>
+              <button key={link.href} onClick={() => router.push(link.href)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-150 text-left
+                  ${isActive
+                    ? 'bg-teal-50 text-teal-700 font-semibold'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                <span className="text-base leading-none">{link.icon}</span>
+                <span>{link.label}</span>
+                {isActive && <span className="ml-auto w-1.5 h-1.5 bg-teal-500 rounded-full flex-shrink-0" />}
+              </button>
             )
-          })()}
+          })}
+        </nav>
 
-          {/* ── RIGHT PANEL — 38% — two side-by-side columns ── */}
-          <div className="w-[38%] bg-gray-50 border-l border-gray-200 flex flex-row flex-shrink-0 no-print">
-
-            {/* ── LEFT COLUMN: TODOS ─────────────────────────── */}
-            <div className="w-1/2 flex flex-col border-r border-gray-200 min-h-0 overflow-hidden">
-            {(() => {
-              const pendingTodos   = displaySidebarTodos.filter((t: any) => !t.completed)
-              const completedTodos = displaySidebarTodos.filter((t: any) => t.completed)
-                .sort((a: any, b: any) => (b.completed_at || '').localeCompare(a.completed_at || ''))
-              const visiblePending   = pendingTodos.slice(0, 8)
-              const morePending      = pendingTodos.length > 8
-              return (
-            <div className="flex-1 min-h-0 flex flex-col bg-white">
-              <div className="flex items-center gap-2 px-3 pt-3 pb-2 flex-shrink-0">
-                <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex-1">📝 Todos</span>
-                {pendingTodos.length > 0 && (
-                  <span className="text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded font-semibold">
-                    {pendingTodos.length}
-                  </span>
-                )}
-                <button onClick={() => setShowAllTodos(true)}
-                  className="text-[10px] font-semibold px-2 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
-                  Show All
-                </button>
-                <button onClick={() => setShowAddTodo(true)}
-                  className="text-[10px] font-semibold px-2 py-1 rounded bg-slate-800 text-white hover:bg-slate-700 transition-colors">
-                  + Add
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto pb-2 space-y-0.5 px-2">
-                {pendingTodos.length === 0 && completedTodos.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-3">All clear ✓</p>
-                ) : null}
-
-                {/* Pending todos */}
-                {visiblePending.map((todo: any) => {
-                  const isCompleting = completingIds.has(todo.id)
-                  const isActive     = activeTodoId === todo.id && !isCompleting
-                  return (
-                    <div key={todo.id}
-                      onClick={() => {
-                        if (isCompleting) return
-                        if (!isAdmin) { handleCompleteTodo(todo.id); return }
-                        setActiveTodoId(isActive ? null : todo.id)
-                      }}
-                      className={`flex items-start gap-2 px-2 py-1.5 rounded-lg border transition-colors
-                        ${isCompleting ? 'opacity-50 cursor-default border-gray-100 bg-gray-50'
-                          : isActive   ? 'border-slate-300 bg-slate-50 cursor-pointer'
-                          :              'border-gray-200 bg-white hover:border-slate-300 hover:shadow-sm cursor-pointer'}`}>
-                      <button
-                        onClick={e => { e.stopPropagation(); if (!isCompleting) handleCompleteTodo(todo.id) }}
-                        disabled={isCompleting}
-                        className={`w-4 h-4 rounded border-2 flex-shrink-0 mt-0.5 transition-all
-                          ${isCompleting ? 'border-green-500 bg-green-100' : 'border-gray-300 hover:border-slate-500'}`}
-                        title="Mark complete">
-                        {isCompleting && <span className="text-[8px] text-green-600 font-bold flex items-center justify-center h-full">✓</span>}
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <div className={`text-sm leading-snug line-clamp-2 ${isCompleting ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                          {todo.content}
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                          {todo.assignee_abbrev && (
-                            <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-1 rounded">{todo.assignee_abbrev}</span>
-                          )}
-                          {todo.due_date && (
-                            <span className={`text-[10px] font-medium ${todo.due_date < todayStr ? 'text-rose-600 font-semibold' : 'text-gray-400'}`}>
-                              {todo.due_date.slice(5, 7)}/{todo.due_date.slice(8, 10)}
-                              {todo.due_date < todayStr ? ' ⚠' : ''}
-                            </span>
-                          )}
-                        </div>
-                        {isActive && isAdmin && (
-                          <div className="flex gap-1.5 mt-1.5" onClick={e => e.stopPropagation()}>
-                            <button onClick={() => openEditTodo(todo)}
-                              className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-600 text-white hover:bg-slate-700 transition-colors">
-                              Edit
-                            </button>
-                            <button onClick={() => deleteTodo(todo.id)}
-                              className="text-[10px] font-medium px-2 py-0.5 rounded bg-rose-500 text-white hover:bg-rose-600 transition-colors">
-                              Delete
-                            </button>
-                            <button onClick={() => setActiveTodoId(null)}
-                              className="text-[10px] font-medium px-2 py-0.5 rounded bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors">
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-                {morePending && (
-                  <button onClick={() => setShowAllTodos(true)}
-                    className="w-full text-[10px] text-indigo-600 hover:text-indigo-800 py-1 text-center font-medium transition-colors">
-                    +{pendingTodos.length - 8} more pending
-                  </button>
-                )}
-
-                {/* Completed divider + completed todos */}
-                {completedTodos.length > 0 && (
-                  <>
-                    <div className="flex items-center gap-2 pt-2 pb-1">
-                      <div className="flex-1 h-px bg-gray-200" />
-                      <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">Completed {completedTodos.length}</span>
-                      <div className="flex-1 h-px bg-gray-200" />
-                    </div>
-                    {completedTodos.map((todo: any) => (
-                      <div key={todo.id} className="flex items-start gap-2 px-2 py-1.5 rounded-lg border border-gray-100 bg-gray-50 opacity-70">
-                        <span className="flex-shrink-0 mt-0.5 w-4 h-4 rounded-full bg-teal-500 flex items-center justify-center">
-                          <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm leading-snug line-clamp-2 line-through text-gray-400">
-                            {todo.content}
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                            {todo.assignee_abbrev && (
-                              <span className="text-[10px] text-slate-400 bg-slate-100 px-1 rounded">{todo.assignee_abbrev}</span>
-                            )}
-                            {todo.completed_by_name && (
-                              <span className="text-[10px] text-teal-500 font-medium">✓ {todo.completed_by_name}</span>
-                            )}
-                            {todo.completed_at && (
-                              <span className="text-[10px] text-gray-300">
-                                {todo.completed_at.slice(5, 7)}/{todo.completed_at.slice(8, 10)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
+        {/* ── Schedule ─────────────────────────────────────── */}
+        <div className="flex-1 min-h-0 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0 bg-violet-100 border-b border-violet-200">
+            <span className="text-sm font-semibold text-gray-700">📅 Schedule</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setShowAllRem(true)}
+                className="text-xs text-gray-500 hover:text-teal-600 px-2 py-0.5 rounded border border-gray-300 hover:border-teal-400 transition-colors">
+                All
+              </button>
+              <button onClick={() => setShowAddRem(true)}
+                className="text-xs bg-teal-600 hover:bg-teal-700 text-white font-medium px-2 py-0.5 rounded transition-colors">
+                + Add
+              </button>
             </div>
-              )
-            })()}
-            </div>{/* end left column */}
+          </div>
 
-            {/* ── RIGHT COLUMN: SCHEDULE ─────────────────────── */}
-            <div className="w-1/2 flex flex-col min-h-0 overflow-hidden">
-            <div className="flex-1 min-h-0 flex flex-col">
-              <div className="flex items-center gap-2 px-3 pt-3 pb-2 flex-shrink-0">
-                <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex-1">📅 Schedule</span>
-                <button onClick={() => setShowAllRem(true)}
-                  className="text-[10px] font-semibold px-2 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
-                  Show All
-                </button>
-                <button onClick={() => setShowAddRem(true)}
-                  className="text-[10px] font-semibold px-2 py-1 rounded bg-slate-800 text-white hover:bg-slate-700 transition-colors">
-                  + Add
-                </button>
-              </div>
+          <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1">
 
-              <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1">
-
-            {/* Feature 15 — Pre-alerts firing today */}
+            {/* Pre-alerts firing today */}
             {(() => {
               const preAlerts = upcoming.filter(r => {
                 if (!r.pre_alert_days || r.pre_alert_days.length === 0) return false
@@ -843,7 +470,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
               })
               if (preAlerts.length === 0) return null
               return (
-                <div className="mb-2">
+                <div className="mb-2 pt-1">
                   <div className="flex items-center gap-1 px-1 pb-1">
                     <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider">⚡ Pre-alerts</span>
                   </div>
@@ -864,7 +491,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
               )
             })()}
 
-            {/* Feature 16 — Court dates (next 14 days) */}
+            {/* Court dates (next 14 days) */}
             {(() => {
               const courtTypes = ['court_hearing', 'filing_deadline']
               const cutoff = new Date(todayStr)
@@ -917,6 +544,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
               )
             })()}
 
+            {/* Regular upcoming reminders */}
             {visibleUpcoming.map((r, i) => <ReminderRow key={r.id} r={r} index={i} variant="upcoming" />)}
             {hasMoreUpcoming && (
               <button onClick={() => setShowAllUpcoming(true)}
@@ -930,6 +558,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                 Collapse
               </button>
             )}
+
             {past.length > 0 && (
               <>
                 <div className="flex items-center gap-2 pt-2 pb-1">
@@ -940,6 +569,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                 {past.map((r, i) => <ReminderRow key={r.id} r={r} index={i} variant="past" />)}
               </>
             )}
+
             {deletedRems.length > 0 && (
               <>
                 <div className="flex items-center gap-2 pt-2 pb-1">
@@ -950,14 +580,34 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                 {deletedRems.map((r, i) => <ReminderRow key={r.id} r={r} index={i} variant="deleted" />)}
               </>
             )}
+
             {displayReminders.length === 0 && <p className="text-xs text-gray-400 text-center py-4">No events</p>}
           </div>
         </div>
 
-            </div>{/* end right column */}
-          </div>{/* end right panel */}
-        </div>{/* end body */}
-      </div>{/* end app shell */}
+        {/* ── User footer ──────────────────────────────────── */}
+        <div className="px-3 py-3 border-t border-slate-300 flex-shrink-0 bg-slate-200">
+          <div className="flex items-center gap-2 px-2 py-1">
+            {myGroups.length > 1 && (
+              <button onClick={() => setShowGroupPicker(true)}
+                className="flex-shrink-0 px-2 py-1 text-xs font-medium rounded border border-gray-400 text-gray-600 hover:bg-gray-300 transition-colors">
+                🔀
+              </button>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-gray-900 truncate">{profile?.name || 'User'}</div>
+              <div className="text-xs text-gray-400">
+                {profile?.role === 'first_admin' ? 'Primary Admin'
+                  : profile?.role === 'second_admin' ? 'Secondary Admin' : 'Member'}
+              </div>
+            </div>
+            <button onClick={handleLogout}
+              className="flex-shrink-0 px-3 py-1 text-xs font-medium rounded border border-gray-400 text-gray-600 hover:bg-gray-300 transition-colors">
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* ══ Switch Group Modal ══════════════════════════════════ */}
       {showGroupPicker && (
@@ -1064,20 +714,17 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                       <span className="text-xs text-gray-500 font-semibold">Past</span>
                     </div>
                   ) : null}
-
                   {!selectedRem.deleted && selectedRem.type && selectedRem.type !== 'others' && (
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${TYPE_COLORS[selectedRem.type] || TYPE_COLORS.others}`}>
                       {TYPE_LABELS[selectedRem.type] || selectedRem.type}
                     </span>
                   )}
-
                   <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold
                     ${remPrimaryDate(selectedRem) === todayStr ? 'bg-amber-100 text-amber-700'
                     : remEndDate(selectedRem) < todayStr || selectedRem.deleted ? 'bg-gray-100 text-gray-500'
                     : 'bg-teal-50 text-teal-700'}`}>
                     <span>📅</span><span>{remFullDateLabel(selectedRem, todayStr)}</span>
                   </div>
-
                   {selectedRem.start_time && (
                     <div className="flex items-center gap-1.5 text-sm text-gray-600">
                       <span>🕐</span>
@@ -1094,7 +741,6 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
                     {selectedRem.content}
                   </p>
                 </div>
-
                 <div className="flex gap-2 px-6 py-4 border-t border-gray-200 flex-shrink-0 flex-wrap">
                   <button onClick={closeDetailRem}
                     className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Close</button>
@@ -1169,7 +815,7 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
         </div>
       )}
 
-      {/* ══ All Upcoming Reminders Modal ════════════════════════ */}
+      {/* ══ All Events Modal ════════════════════════════════════ */}
       {showAllRem && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
@@ -1183,190 +829,6 @@ export default function Sidebar({ profile, groupId, groupName, subdomain, childr
           </div>
         </div>
       )}
-
-      {/* ══ Add Todo Modal ══════════════════════════════════════ */}
-      {showAddTodo && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-semibold text-gray-900">Add Todo</h3>
-              <button onClick={() => setShowAddTodo(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Task <span className="text-red-500">*</span></label>
-                <textarea value={newTodoContent} onChange={e => setNewTodoContent(e.target.value)}
-                  placeholder="What needs to be done?" rows={3} className="input-field resize-none" autoFocus />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Assignee</label>
-                <div className="flex flex-wrap gap-1.5">
-                  <button type="button" onClick={() => setNewTodoAssignee('')}
-                    className={`text-xs px-2.5 py-1 rounded border transition-colors
-                      ${newTodoAssignee === '' ? 'border-slate-500 bg-slate-50 text-slate-700 font-medium' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                    Unassigned
-                  </button>
-                  {members.map(m => (
-                    <button key={m.id} type="button" onClick={() => setNewTodoAssignee(memberInitials(m.name))}
-                      className={`text-xs px-2.5 py-1 rounded border transition-colors
-                        ${newTodoAssignee === memberInitials(m.name) ? 'border-slate-500 bg-slate-50 text-slate-700 font-medium' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                      {m.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>
-                <input type="date" value={newTodoDueDate} onChange={e => setNewTodoDueDate(e.target.value)}
-                  className="input-field" />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => { setShowAddTodo(false); setNewTodoContent(''); setNewTodoAssignee(''); setNewTodoDueDate('') }}
-                className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
-              <button onClick={addSidebarTodo} disabled={todoSaving || !newTodoContent.trim()}
-                className="flex-1 py-2 text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-lg disabled:opacity-40 transition-colors">
-                {todoSaving ? 'Saving…' : 'Add Todo'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══ Edit Todo Modal ════════════════════════════════════ */}
-      {editTodoId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-semibold text-gray-900">Edit Todo</h3>
-              <button onClick={() => setEditTodoId(null)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Task <span className="text-red-500">*</span></label>
-                <textarea value={editTodoContent} onChange={e => setEditTodoContent(e.target.value)}
-                  rows={3} className="input-field resize-none" autoFocus />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Assignee</label>
-                <div className="flex flex-wrap gap-1.5">
-                  <button type="button" onClick={() => setEditTodoAssignee('')}
-                    className={`text-xs px-2.5 py-1 rounded border transition-colors
-                      ${editTodoAssignee === '' ? 'border-slate-500 bg-slate-50 text-slate-700 font-medium' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                    Unassigned
-                  </button>
-                  {members.map(m => (
-                    <button key={m.id} type="button" onClick={() => setEditTodoAssignee(memberInitials(m.name))}
-                      className={`text-xs px-2.5 py-1 rounded border transition-colors
-                        ${editTodoAssignee === memberInitials(m.name) ? 'border-slate-500 bg-slate-50 text-slate-700 font-medium' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                      {m.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>
-                <input type="date" value={editTodoDueDate} onChange={e => setEditTodoDueDate(e.target.value)}
-                  className="input-field" />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setEditTodoId(null)}
-                className="flex-1 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
-              <button onClick={saveEditTodo} disabled={editTodoSaving || !editTodoContent.trim()}
-                className="flex-1 py-2 text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-lg disabled:opacity-40 transition-colors">
-                {editTodoSaving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══ Show All Todos Modal ════════════════════════════════ */}
-      {showAllTodos && (() => {
-        const allPending   = displaySidebarTodos.filter((t: any) => !t.completed)
-        const allCompleted = displaySidebarTodos.filter((t: any) => t.completed)
-          .sort((a: any, b: any) => (b.completed_at || '').localeCompare(a.completed_at || ''))
-        return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <div>
-                <h3 className="text-base font-semibold text-gray-900">All Todos</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{allPending.length} pending · {allCompleted.length} completed</p>
-              </div>
-              <button onClick={() => setShowAllTodos(false)} className="text-gray-400 hover:text-gray-600 text-lg">✕</button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1">
-              {allPending.length === 0 && allCompleted.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-8">All clear ✓</p>
-              ) : null}
-              {allPending.map((todo: any) => (
-                <div key={todo.id} className="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 group transition-colors border border-transparent hover:border-gray-200">
-                  <button
-                    onClick={async () => { await completeSidebarTodo(todo.id) }}
-                    className="w-4 h-4 rounded border-2 border-gray-300 group-hover:border-slate-500 flex-shrink-0 mt-0.5 transition-colors"
-                    title="Mark complete" />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm text-gray-800 leading-snug">{todo.content}</div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {todo.assignee_abbrev && (
-                        <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">{todo.assignee_abbrev}</span>
-                      )}
-                      {todo.due_date && (
-                        <span className={`text-[10px] font-medium ${todo.due_date < todayStr ? 'text-rose-600 font-semibold' : 'text-gray-400'}`}>
-                          Due {todo.due_date.slice(5, 7)}/{todo.due_date.slice(8, 10)}{todo.due_date < todayStr ? ' ⚠' : ''}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {allCompleted.length > 0 && (
-                <>
-                  <div className="flex items-center gap-2 pt-3 pb-1">
-                    <div className="flex-1 h-px bg-gray-200" />
-                    <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">Completed {allCompleted.length}</span>
-                    <div className="flex-1 h-px bg-gray-200" />
-                  </div>
-                  {allCompleted.map((todo: any) => (
-                    <div key={todo.id} className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-transparent opacity-70">
-                      <span className="flex-shrink-0 mt-0.5 w-4 h-4 rounded-full bg-teal-500 flex items-center justify-center">
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm text-gray-400 line-through leading-snug">{todo.content}</div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {todo.assignee_abbrev && (
-                            <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{todo.assignee_abbrev}</span>
-                          )}
-                          {todo.completed_by_name && (
-                            <span className="text-[10px] text-teal-500 font-medium">✓ {todo.completed_by_name}</span>
-                          )}
-                          {todo.completed_at && (
-                            <span className="text-[10px] text-gray-300">
-                              {todo.completed_at.slice(5, 7)}/{todo.completed_at.slice(8, 10)}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-            <div className="px-6 py-3 border-t border-gray-100 flex-shrink-0">
-              <button onClick={() => { setShowAllTodos(false); setShowAddTodo(true) }}
-                className="w-full py-2 text-sm font-medium text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors">
-                + Add new todo
-              </button>
-            </div>
-          </div>
-        </div>
-        )
-      })()}
     </>
   )
 }
