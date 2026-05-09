@@ -401,12 +401,8 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
   const navLinks = [
     { href: `/${subdomain}/dashboard`, label: 'Today',      icon: '🗓️' },
     { href: `/${subdomain}/projects`,  label: 'Matters',    icon: '📋' },
-    { href: `/${subdomain}/my-stats`,  label: 'My Stats',   icon: '📈' },
     ...(isAdmin ? [
-      { href: `/${subdomain}/analytics`, label: 'Analytics',  icon: '📊' },
-      { href: `/${subdomain}/invoice`,   label: 'Invoice',    icon: '🧾' },
-      { href: `/${subdomain}/team-stats`,label: 'Team Stats', icon: '👥' },
-      { href: `/${subdomain}/admin`,     label: 'Admin',      icon: '⚙️' },
+      { href: `/${subdomain}/admin`,   label: 'Admin',      icon: '⚙️' },
     ] : []),
   ]
 
