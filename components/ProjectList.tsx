@@ -401,33 +401,30 @@ export default function ProjectList({
           <span className="text-base font-bold text-teal-600 flex-shrink-0 mr-1">{projects.length}</span>
           <span className="w-px h-5 bg-amber-300 flex-shrink-0 mx-1" />
 
-          {/* Status filter pills — skip 'all', teal-200 dividers between each */}
-          {STATUS_ORDER.filter(k => k !== 'all').map((key, i) => (
+          {/* Status filter pills — all, active, pending, archived, closed only */}
+          {(['all', 'active', 'pending', 'archived', 'completed'] as const).map((key, i) => (
             <div key={key} className="flex items-center gap-1.5">
               {i > 0 && <span className="w-px h-4 bg-teal-200 flex-shrink-0" />}
               <button onClick={() => setFilter(key)}
                 className="sf-pill px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer flex-shrink-0 whitespace-nowrap"
                 data-k={key} data-on={filter === key ? '1' : '0'}>
                 {STATUS_LABELS[key]}
-                <span className="ml-1 text-xs opacity-70">
-                  {projects.filter((p: any) => p.status === key).length}
-                </span>
+                {key !== 'all' && (
+                  <span className="ml-1 text-xs opacity-70">
+                    {projects.filter((p: any) => p.status === key).length}
+                  </span>
+                )}
               </button>
             </div>
           ))}
 
           <span className="w-px h-5 bg-amber-300 flex-shrink-0 mx-1" />
 
-          {/* Action buttons — solid filled colours matching mydeheng */}
+          {/* Action buttons */}
           <button onClick={() => { setStatsStart(''); setStatsEnd(''); setShowProjStats(true) }}
             className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 whitespace-nowrap
                        bg-amber-500 hover:bg-amber-600 text-white shadow-sm flex-shrink-0">
             Stats
-          </button>
-          <button onClick={() => { setWeeklyData(null); setShowWeeklySummary(true) }}
-            className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 whitespace-nowrap
-                       bg-teal-500 hover:bg-teal-600 text-white shadow-sm flex-shrink-0">
-            This Week
           </button>
           <button onClick={() => { setPendingSortMode(sortMode); setShowSortModal(true) }}
             className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 whitespace-nowrap
