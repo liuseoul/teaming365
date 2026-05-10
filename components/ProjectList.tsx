@@ -395,46 +395,59 @@ export default function ProjectList({
       <Sidebar profile={profile} groupId={groupId} groupName={groupName} subdomain={subdomain} />
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* ── Header + unified toolbar ── */}
-        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-100 border-b border-amber-200 flex-shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-1.5 px-4 py-3 bg-amber-100 border-b border-amber-200 flex-shrink-0 overflow-x-auto">
           {/* Title + count */}
           <h1 className="text-sm font-semibold text-gray-900 flex-shrink-0 mr-1">Matters</h1>
-          <span className="text-base font-bold text-teal-600 flex-shrink-0">{projects.length}</span>
+          <span className="text-base font-bold text-teal-600 flex-shrink-0 mr-1">{projects.length}</span>
           <span className="w-px h-5 bg-amber-300 flex-shrink-0 mx-1" />
 
-          {/* Status filter pills */}
-          {STATUS_ORDER.map(key => (
-            <button key={key} onClick={() => setFilter(key)}
-              className="sf-pill px-3 py-1 rounded-full text-xs font-medium cursor-pointer flex-shrink-0"
-              data-k={key} data-on={filter === key ? '1' : '0'}>
-              {STATUS_LABELS[key]}
-              {key !== 'all' && (
-                <span className="ml-1 opacity-60">{projects.filter((p: any) => p.status === key).length}</span>
-              )}
-            </button>
+          {/* Status filter pills — skip 'all', teal-200 dividers between each */}
+          {STATUS_ORDER.filter(k => k !== 'all').map((key, i) => (
+            <div key={key} className="flex items-center gap-1.5">
+              {i > 0 && <span className="w-px h-4 bg-teal-200 flex-shrink-0" />}
+              <button onClick={() => setFilter(key)}
+                className="sf-pill px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer flex-shrink-0 whitespace-nowrap"
+                data-k={key} data-on={filter === key ? '1' : '0'}>
+                {STATUS_LABELS[key]}
+                <span className="ml-1 text-xs opacity-70">
+                  {projects.filter((p: any) => p.status === key).length}
+                </span>
+              </button>
+            </div>
           ))}
 
           <span className="w-px h-5 bg-amber-300 flex-shrink-0 mx-1" />
 
-          {/* Action buttons */}
+          {/* Action buttons — solid filled colours matching mydeheng */}
           <button onClick={() => { setStatsStart(''); setStatsEnd(''); setShowProjStats(true) }}
-            className="px-3 py-1 rounded-full text-xs font-medium border border-amber-300 text-amber-800 hover:bg-amber-200 transition-colors flex-shrink-0">
+            className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 whitespace-nowrap
+                       bg-amber-500 hover:bg-amber-600 text-white shadow-sm flex-shrink-0">
             Stats
           </button>
           <button onClick={() => { setWeeklyData(null); setShowWeeklySummary(true) }}
-            className="px-3 py-1 rounded-full text-xs font-medium border border-amber-300 text-amber-800 hover:bg-amber-200 transition-colors flex-shrink-0">
+            className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 whitespace-nowrap
+                       bg-teal-500 hover:bg-teal-600 text-white shadow-sm flex-shrink-0">
             This Week
           </button>
           <button onClick={() => { setPendingSortMode(sortMode); setShowSortModal(true) }}
-            className="px-3 py-1 rounded-full text-xs font-medium border border-amber-300 text-amber-800 hover:bg-amber-200 transition-colors flex-shrink-0">
+            className="px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-150 whitespace-nowrap
+                       bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm flex-shrink-0">
             Sort
           </button>
 
-          {isAdmin && (
-            <button onClick={() => router.push(`/${subdomain}/admin`)}
-              className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-teal-700 text-white hover:bg-teal-800 transition-colors flex-shrink-0 ml-auto">
-              <span>+</span><span>New matter</span>
-            </button>
-          )}
+          {/* Right: new matter — circle + icon */}
+          <div className="ml-auto flex items-center gap-3 flex-shrink-0">
+            {isAdmin && (
+              <button onClick={() => router.push(`/${subdomain}/admin`)} title="New matter"
+                className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-600 hover:bg-teal-500
+                           shadow-md hover:shadow-lg hover:scale-110 transition-all duration-200
+                           flex items-center justify-center text-white">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Due-today strip */}
