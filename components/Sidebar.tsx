@@ -354,13 +354,13 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
     const dateLabel = remDateLabel(r)
     const rowBg     = variant === 'upcoming' ? (isToday ? '' : ROW_BG[index % 2]) : ''
     const cls =
-      variant === 'upcoming' && isToday ? 'bg-amber-50 border-amber-400 hover:bg-amber-100'
-      : variant === 'upcoming'          ? `${rowBg} border-gray-400 hover:border-teal-500 hover:bg-teal-50/40`
-      : variant === 'past'              ? 'bg-gray-50 border-gray-300 opacity-60 hover:opacity-80'
-      : 'bg-red-50/40 border-red-300 opacity-50 hover:opacity-70'
+      variant === 'upcoming' && isToday ? 'bg-amber-50 border-gray-400'
+      : variant === 'upcoming'          ? `${rowBg} border-gray-400`
+      : variant === 'past'              ? 'bg-gray-50 border-gray-400 opacity-60 hover:opacity-80'
+      : 'bg-red-50/40 border-gray-400 opacity-50 hover:opacity-70'
     return (
       <button onClick={() => openDetailRem(r)}
-        className={`w-full text-left flex items-start gap-2 px-2 py-2 rounded-lg border transition-all ${cls}`}>
+        className={`w-full text-left flex items-start gap-2 px-2 py-2 rounded-lg border transition-all duration-150 hover:border-teal-500 hover:shadow-sm ${cls}`}>
         <div className="flex flex-col items-start flex-shrink-0 min-w-9 mt-0.5">
           <span className={`text-xs font-bold leading-tight
             ${variant === 'upcoming' && isToday ? 'text-amber-600' : variant === 'upcoming' ? 'text-teal-600' : 'text-gray-400'}`}>
