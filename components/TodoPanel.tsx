@@ -461,12 +461,10 @@ export default function TodoPanel({ profile, groupId }: { profile: any; groupId:
       <div className="flex items-center justify-between px-4 py-3 border-b border-emerald-200 flex-shrink-0 bg-emerald-100">
         <h2 className="text-sm font-semibold text-gray-800">Todos</h2>
         <div className="flex items-center gap-2">
-          {uncompleted.length > 0 && (
-            <button onClick={() => setShowAllTodos(true)}
-              className="text-xs text-gray-500 hover:text-teal-600 px-2 py-1 rounded border border-gray-300 hover:border-teal-400 transition-colors">
-              All
-            </button>
-          )}
+          <button onClick={() => setShowAllTodos(true)}
+            className="text-xs text-gray-500 hover:text-teal-600 px-2 py-1 rounded border border-gray-300 hover:border-teal-400 transition-colors">
+            All
+          </button>
           <button onClick={() => setShowAdd(true)}
             className="text-xs bg-teal-600 hover:bg-teal-700 text-white font-medium px-3 py-1.5 rounded-lg transition-colors">
             + Add
