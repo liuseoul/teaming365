@@ -44,12 +44,12 @@ function fmtTime(t: string | null) {
 }
 
 function urgencyBg(due: string | null, today: string) {
-  if (!due) return 'border-gray-200 bg-white'
-  if (due < today) return 'border-l-4 border-red-400 bg-red-50'
-  if (due === today) return 'border-l-4 border-amber-400 bg-amber-50'
+  if (!due) return 'border-gray-400 bg-white'
+  if (due < today) return 'border-gray-400 bg-red-50'
+  if (due === today) return 'border-gray-400 bg-amber-50'
   const diff = (new Date(due).getTime() - new Date(today).getTime()) / 86400000
-  if (diff <= 3) return 'border-l-4 border-yellow-300 bg-yellow-50'
-  return 'border-gray-200 bg-white'
+  if (diff <= 3) return 'border-gray-400 bg-yellow-50'
+  return 'border-gray-400 bg-white'
 }
 
 function dayLabel(today: string) {
@@ -163,7 +163,7 @@ export default function DailyDashboard({
                     const startDate = r.start_date || r.due_date
                     const d = Math.ceil((new Date(startDate).getTime() - new Date(today).getTime()) / 86400000)
                     return (
-                      <div key={r.id} className="flex items-start gap-3 p-3 rounded-lg border border-orange-200 bg-orange-50">
+                      <div key={r.id} className="flex items-start gap-3 p-3 rounded-lg border border-gray-400 bg-orange-50 hover:border-teal-500 hover:shadow-sm transition-all duration-150">
                         <span className="text-sm font-bold text-orange-600 min-w-10">⚡ {d}d</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-orange-800">{r.content}</p>
@@ -188,7 +188,7 @@ export default function DailyDashboard({
               <Section title="Today's Events" badge={decTodayReminders.length} badgeColor="blue">
                 <div className="space-y-2">
                   {decTodayReminders.map(r => (
-                    <div key={r.id} className="flex items-start gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50">
+                    <div key={r.id} className="flex items-start gap-3 p-3 rounded-lg border border-gray-400 bg-amber-50 hover:border-teal-500 hover:shadow-sm transition-all duration-150">
                       <div className="flex-shrink-0 text-center min-w-10">
                         {r.start_time ? (
                           <>
@@ -228,8 +228,8 @@ export default function DailyDashboard({
                     const isUrgent = d <= 3
                     return (
                       <div key={r.id}
-                        className={`flex items-start gap-3 p-3 rounded-lg border
-                          ${isUrgent ? 'border-rose-300 bg-rose-50' : 'border-red-200 bg-red-50/50'}`}>
+                        className={`flex items-start gap-3 p-3 rounded-lg border border-gray-400 hover:border-teal-500 hover:shadow-sm transition-all duration-150
+                          ${isUrgent ? 'bg-rose-50' : 'bg-red-50/50'}`}>
                         <div className="flex-shrink-0 text-center min-w-12">
                           <p className={`text-sm font-bold ${isUrgent ? 'text-rose-700' : 'text-red-600'}`}>
                             {fmtDate(startDate)}
@@ -382,7 +382,7 @@ function TodoList({ todos, today }: { todos: any[]; today: string }) {
     <div className="space-y-1.5">
       {todos.map(t => (
         <div key={t.id}
-          className={`flex items-center gap-3 py-2 px-3 rounded-lg border text-sm ${urgencyBg(t.due_date, today)}`}>
+          className={`flex items-center gap-3 py-2 px-3 rounded-lg border text-sm hover:border-teal-500 hover:shadow-sm transition-all duration-150 ${urgencyBg(t.due_date, today)}`}>
           <div className="flex-1 min-w-0">
             <p className="text-gray-800 truncate">{t.content}</p>
           </div>

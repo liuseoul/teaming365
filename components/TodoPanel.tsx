@@ -129,12 +129,13 @@ function TodoRow({
   const rowBg     = isDue ? 'bg-yellow-50' : isPending ? PENDING_BG[index % 2] : ''
 
   return (
-    <div className={`flex items-start gap-2 px-2 py-2 rounded-lg border transition-colors
+    <div className={`flex items-start gap-2 px-2 py-2 rounded-lg border transition-all duration-150
+      hover:border-teal-500 hover:shadow-sm
       ${isDue
-        ? 'bg-yellow-50 border-yellow-400 hover:bg-yellow-100'
+        ? 'bg-yellow-50 border-gray-400'
         : isPending
-        ? `${rowBg} border-gray-400 hover:border-teal-500 hover:bg-teal-50/40`
-        : 'border-gray-300 hover:bg-gray-100'}`}
+        ? `${rowBg} border-gray-400`
+        : 'border-gray-400 bg-white/60'}`}
     >
       {!todo.deleted && !done && (
         <button onClick={() => onMarkDone(todo)} title="Mark done"
