@@ -28,15 +28,6 @@ type Todo = {
   deleted_at: string | null
 }
 
-function urgencyClass(dueDate: string | null | undefined): string {
-  if (!dueDate) return ''
-  const today = new Date().toISOString().slice(0, 10)
-  if (dueDate < today)    return 'border-l-4 border-red-400 bg-red-50'
-  if (dueDate === today)  return 'border-l-4 border-amber-400 bg-amber-50'
-  const diff = (new Date(dueDate).getTime() - new Date(today).getTime()) / 86400000
-  if (diff <= 3)          return 'border-l-4 border-yellow-300 bg-yellow-50'
-  return ''
-}
 
 function parseItems(raw: string, members: Member[]): { content: string; abbrev: string }[] {
   // Build a set of known first-chars from current group members
@@ -123,7 +114,6 @@ function TodoRow({
   onSoftDelete, onRestoreCompleted, onRestoreTodo, onHardDelete,
 }: TodoRowProps) {
   const done      = todo.completed
-  const todayStr  = new Date().toISOString().split('T')[0]
   const isEditing = editingId === todo.id
 
   const canDelete           = isPending && !todo.deleted
@@ -134,16 +124,17 @@ function TodoRow({
   const canUncomplete       = done && !todo.deleted &&
     ((profileName && profileName === todo.completed_by_name) || isAdmin)
 
-  // Only apply urgency coloring to active (non-completed, non-deleted) todos
-  const urgency = isPending && !done && !todo.deleted ? urgencyClass(todo.due_date) : ''
+  const todayStr  = new Date().toISOString().split('T')[0]
+  const isDue     = isPending && !done && !todo.deleted && !!todo.due_date && todo.due_date <= todayStr
+  const rowBg     = isDue ? 'bg-yellow-50' : isPending ? PENDING_BG[index % 2] : ''
 
   return (
     <div className={`flex items-start gap-2 px-2 py-2 rounded-lg border transition-colors
-      ${urgency
-        ? urgency
+      ${isDue
+        ? 'bg-yellow-50 border-yellow-400 hover:bg-yellow-100'
         : isPending
-        ? `${PENDING_BG[index % 2]} border-gray-200 hover:border-teal-300 hover:bg-teal-50/40`
-        : 'border-transparent hover:bg-gray-100'}`}
+        ? `${rowBg} border-gray-400 hover:border-teal-500 hover:bg-teal-50/40`
+        : 'border-gray-300 hover:bg-gray-100'}`}
     >
       {!todo.deleted && !done && (
         <button onClick={() => onMarkDone(todo)} title="Mark done"
@@ -466,13 +457,13 @@ export default function TodoPanel({ profile, groupId }: { profile: any; groupId:
   }
 
   return (
-    <div className="w-[480px] bg-gray-50 border-l border-gray-200 flex flex-col h-full flex-shrink-0">
-      <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200 flex-shrink-0 bg-white">
+    <div className="w-[384px] bg-gray-50 border-l border-gray-200 flex flex-col h-full flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-emerald-200 flex-shrink-0 bg-emerald-100">
         <h2 className="text-sm font-semibold text-gray-800">Todos</h2>
         <div className="flex items-center gap-2">
           {uncompleted.length > 0 && (
             <button onClick={() => setShowAllTodos(true)}
-              className="text-xs text-gray-500 hover:text-teal-600 px-2 py-1.5 rounded-lg border border-gray-300 hover:border-teal-400 transition-colors">
+              className="text-xs text-gray-500 hover:text-teal-600 px-2 py-1 rounded border border-gray-300 hover:border-teal-400 transition-colors">
               All
             </button>
           )}

@@ -306,7 +306,7 @@ export default function DailyDashboard({
                           const startDate = r.start_date || r.due_date
                           const d = Math.ceil((new Date(startDate).getTime() - new Date(today).getTime()) / 86400000)
                           return (
-                            <div key={r.id} className="flex items-center gap-3 py-1.5 px-2 rounded border border-gray-100 hover:border-gray-200 bg-white">
+                            <div key={r.id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg border border-gray-400 hover:border-teal-500 hover:shadow-sm bg-white transition-all duration-150">
                               <span className="text-xs font-bold text-teal-600 min-w-10">{fmtDate(startDate)}</span>
                               <p className="text-sm text-gray-700 flex-1 truncate">{r.content}</p>
                               <span className="text-[10px] text-gray-400 flex-shrink-0">{d}d</span>

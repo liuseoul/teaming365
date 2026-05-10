@@ -397,10 +397,9 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
     )
   }
 
-  // ── Nav links ─────────────────────────────────────────────
+  // ── Nav links (no Matters — logo click navigates to projects) ──
   const navLinks = [
-    { href: `/${subdomain}/projects`,   label: 'Matters',    icon: '📋' },
-    { href: `/${subdomain}/my-stats`,   label: 'My Stats',   icon: '📊' },
+    { href: `/${subdomain}/my-stats`,     label: 'My Stats',   icon: '📊' },
     ...(isAdmin ? [
       { href: `/${subdomain}/team-stats`, label: 'Team Stats', icon: '👥' },
     ] : []),
@@ -410,30 +409,32 @@ export default function Sidebar({ profile, groupId, groupName, subdomain }: Side
     <>
       <div className="w-[384px] bg-white border-r border-gray-200 text-gray-900 flex flex-col h-full flex-shrink-0">
 
-        {/* ── Logo ─────────────────────────────────────────── */}
-        <button onClick={() => router.push(`/${subdomain}/dashboard`)}
+        {/* ── Logo — click goes to main (projects) page ──────── */}
+        <button onClick={() => router.push(`/${subdomain}/projects`)}
           className="px-4 py-3 border-b border-teal-200 flex-shrink-0 w-full text-left bg-teal-100 hover:bg-teal-200 transition-colors">
           <div className="flex items-center gap-2.5">
             <div className="w-6 h-6 bg-teal-600 rounded-md flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-              {(groupName || 'T').charAt(0).toUpperCase()}
+              {subdomain.charAt(0).toUpperCase()}
             </div>
-            <div className="text-sm font-semibold text-gray-900 leading-tight truncate">{groupName}</div>
+            <div className="leading-tight min-w-0">
+              <div className="text-xs font-semibold text-gray-900 truncate capitalize">{subdomain}</div>
+              <div className="text-[11px] text-gray-500 truncate">{profile?.name || ''}</div>
+            </div>
           </div>
         </button>
 
         {/* ── Navigation ───────────────────────────────────── */}
-        <nav className="px-3 py-2 space-y-0.5 border-b border-gray-200 flex-shrink-0">
+        <nav className="px-3 py-3 space-y-1 border-b border-gray-200 flex-shrink-0">
           {navLinks.map(link => {
             const isActive = pathname === link.href
             return (
               <button key={link.href} onClick={() => router.push(link.href)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-150 text-left
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors duration-150 text-left
                   ${isActive
                     ? 'bg-teal-50 text-teal-700 font-semibold'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
                 <span className="text-base leading-none">{link.icon}</span>
                 <span>{link.label}</span>
-                {isActive && <span className="ml-auto w-1.5 h-1.5 bg-teal-500 rounded-full flex-shrink-0" />}
               </button>
             )
           })}
