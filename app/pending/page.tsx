@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { useClerk, useAuth } from '@clerk/nextjs'
+import { useClerk, useAuth, useUser } from '@clerk/nextjs'
 
 function BrandName() {
   return (
@@ -16,9 +16,19 @@ function BrandName() {
 export default function PendingPage() {
   const { signOut } = useClerk()
   const { userId } = useAuth()
+  const { user } = useUser()
+  const userEmail = user?.primaryEmailAddress?.emailAddress ?? ''
+
+  // ── View state ────────────────────────────────────────────
+  const [view, setView] = useState<'waiting' | 'join' | 'create'>('waiting')
+
+  // ── Join by invitation state ──────────────────────────────
+  const [joinGroupName, setJoinGroupName] = useState('')
+  const [joinCode,      setJoinCode]      = useState('')
+  const [joining,       setJoining]       = useState(false)
+  const [joinMsg,       setJoinMsg]       = useState('')
 
   // ── Create-team inline form state ─────────────────────────
-  const [showCreate,     setShowCreate]     = useState(false)
   const [groupNameCn,    setGroupNameCn]    = useState('')
   const [groupNameEn,    setGroupNameEn]    = useState('')
   const [managerNameEn,  setManagerNameEn]  = useState('')
@@ -27,6 +37,34 @@ export default function PendingPage() {
 
   const previewSubdomain = (groupNameEn + managerNameEn)
     .toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 40)
+
+  async function handleJoin() {
+    if (!joinGroupName.trim() || !joinCode.trim()) {
+      setJoinMsg('❌ Both team name and code are required'); return
+    }
+    if (!userId) { setJoinMsg('❌ Auth service not ready — please refresh'); return }
+    setJoining(true); setJoinMsg('')
+    try {
+      const res = await fetch('/api/auth/join-by-invitation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clerkUserId:   userId,
+          groupName:     joinGroupName.trim(),
+          code:          joinCode.trim(),
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) { setJoinMsg(`❌ ${json.error || 'Join failed'}`); return }
+      // Set qt_uid cookie so the server page never calls auth()
+      document.cookie = `qt_uid=${encodeURIComponent(userId)}; path=/; max-age=86400; SameSite=Lax`
+      window.location.href = `/${json.subdomain}/projects?_uid=${encodeURIComponent(userId)}`
+    } catch {
+      setJoinMsg('❌ Network error — please try again')
+    } finally {
+      setJoining(false)
+    }
+  }
 
   async function handleCreate() {
     if (!groupNameCn.trim() || !groupNameEn.trim() || !managerNameEn.trim()) {
@@ -48,7 +86,7 @@ export default function PendingPage() {
       const json = await res.json()
       if (!res.ok) { setCreateMsg(`❌ ${json.error || 'Creation failed'}`); return }
       // Set qt_uid cookie + _uid param so the server page never calls auth()
-      if (userId) document.cookie = `qt_uid=${encodeURIComponent(userId)}; path=/; max-age=86400; SameSite=Lax`
+      document.cookie = `qt_uid=${encodeURIComponent(userId)}; path=/; max-age=86400; SameSite=Lax`
       window.location.href = `/${json.subdomain}/projects?_uid=${encodeURIComponent(userId ?? '')}`
     } catch {
       setCreateMsg('❌ Network error — please try again')
@@ -72,20 +110,29 @@ export default function PendingPage() {
         {/* Brand */}
         <h1 className="text-white mb-1"><BrandName /></h1>
 
-        {!showCreate ? (
+        {view === 'waiting' && (
           /* ── Waiting card ──────────────────────────────── */
           <div className="bg-white rounded-2xl shadow-2xl p-8 mt-6 space-y-4">
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 border border-amber-200 mx-auto">
               <span className="text-xl">⏳</span>
             </div>
-            <h2 className="text-lg font-semibold text-gray-900">Account created — awaiting access</h2>
-            <p className="text-sm text-gray-500 leading-relaxed">
-              Your account is ready. If you&apos;ve been invited to a team, ask your admin to add you by email — you&apos;ll get instant access.
-            </p>
+            <h2 className="text-lg font-semibold text-gray-900">Account created — what would you like to do?</h2>
+            {userEmail && (
+              <p className="text-xs text-gray-400">Signed in as <span className="font-mono">{userEmail}</span></p>
+            )}
+
+            {/* Join by invitation */}
+            <button
+              onClick={() => setView('join')}
+              className="w-full py-2.5 text-sm font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition-colors"
+            >
+              Join a team with invitation code →
+            </button>
+
             <div className="bg-gray-50 rounded-lg px-4 py-3 text-xs text-gray-400 text-left space-y-1">
-              <p>✉️ Share your email with your team admin</p>
-              <p>🔑 They can add you instantly using your email</p>
-              <p>✅ Sign back in with the same account once you&apos;ve been added</p>
+              <p>✉️ Received an invitation? Click above</p>
+              <p>🔑 Enter the team name and 6-digit code from your email</p>
+              <p>✅ You&apos;ll be added to the team instantly</p>
             </div>
 
             {/* Divider */}
@@ -97,8 +144,8 @@ export default function PendingPage() {
 
             {/* Create team option */}
             <button
-              onClick={() => setShowCreate(true)}
-              className="w-full py-2.5 text-sm font-medium text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition-colors"
+              onClick={() => setView('create')}
+              className="w-full py-2.5 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors"
             >
               Create my own team →
             </button>
@@ -110,7 +157,64 @@ export default function PendingPage() {
               Sign out
             </button>
           </div>
-        ) : (
+        )}
+
+        {view === 'join' && (
+          /* ── Join by invitation card ───────────────────── */
+          <div className="bg-white rounded-2xl shadow-2xl p-8 mt-6 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900">Join a team</h2>
+            <p className="text-sm text-gray-500">
+              Enter the team name and the 6-digit code from your invitation email.
+            </p>
+
+            <div className="space-y-3 text-left">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Team name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={joinGroupName}
+                  onChange={e => setJoinGroupName(e.target.value)}
+                  placeholder="e.g. Johnson & Partners"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Invitation code <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={joinCode}
+                  onChange={e => setJoinCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="6-digit code"
+                  maxLength={6}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent placeholder:text-gray-400 placeholder:tracking-normal placeholder:font-sans"
+                />
+              </div>
+
+              {userEmail && (
+                <div className="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-500">
+                  Joining as: <span className="font-mono">{userEmail}</span>
+                </div>
+              )}
+            </div>
+
+            {joinMsg && <p className="text-sm text-left">{joinMsg}</p>}
+
+            <button onClick={handleJoin} disabled={joining}
+              className="w-full py-2.5 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 rounded-lg transition-colors">
+              {joining ? 'Joining…' : 'Join team'}
+            </button>
+            <button onClick={() => { setView('waiting'); setJoinMsg('') }}
+              className="w-full py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              ← Back
+            </button>
+          </div>
+        )}
+
+        {view === 'create' && (
           /* ── Create team card ──────────────────────────── */
           <div className="bg-white rounded-2xl shadow-2xl p-8 mt-6 space-y-4">
             <h2 className="text-lg font-semibold text-gray-900">Create my team</h2>
@@ -149,12 +253,13 @@ export default function PendingPage() {
               className="w-full py-2.5 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 rounded-lg transition-colors">
               {creating ? 'Creating…' : 'Create team'}
             </button>
-            <button onClick={() => { setShowCreate(false); setCreateMsg('') }}
+            <button onClick={() => { setView('waiting'); setCreateMsg('') }}
               className="w-full py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors">
               ← Back
             </button>
           </div>
         )}
+
       </div>
     </div>
   )

@@ -11,7 +11,6 @@ import {
   getGroupKey,
   addMemberToGroup,
   removeMemberFromGroup,
-  encField,
   decField,
 } from '@/lib/e2e'
 
@@ -100,7 +99,7 @@ export default function AdminDashboard({
   const isFirstAdmin = profile?.role === 'first_admin'
   const isAdmin = ['first_admin', 'second_admin'].includes(profile?.role)
 
-  const [tab, setTab] = useState<'projects' | 'members' | 'clients' | 'intake'>('projects')
+  const [tab, setTab] = useState<'members' | 'clients' | 'intake'>('members')
 
   // ── Intakes (Feature 19) ──────────────────────────────────
   const [intakes,       setIntakes]       = useState<any[]>(initialIntakes)
@@ -144,43 +143,12 @@ export default function AdminDashboard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyPair, e2eReady, isFirstAdmin])
 
-  // ── New matter ────────────────────────────────────────────
-  const [projName,       setProjName]       = useState('')
-  const [projClient,     setProjClient]     = useState('')
-  const [projClientId,   setProjClientId]   = useState('')   // CRM link
-  const [projDesc,       setProjDesc]       = useState('')
-  const [projStatus,     setProjStatus]     = useState('active')
-  const [projMatterType, setProjMatterType] = useState('')
-  const [projAgreement,  setProjAgreement]  = useState('')
-  const [projCurrency,   setProjCurrency]   = useState('')
-  const [projAmount,     setProjAmount]     = useState('')
-  const [collabParties,  setCollabParties]  = useState([''])
-  const [projSaving,    setProjSaving]    = useState(false)
-  const [projMsg,       setProjMsg]       = useState('')
-
-  // ── New member ────────────────────────────────────────────
-  const [memName,     setMemName]     = useState('')
-  const [memEmail,    setMemEmail]    = useState('')
-  const [memPassword, setMemPassword] = useState('')
-  const [showMemPwd,  setShowMemPwd]  = useState(false)
-  const [memRole,     setMemRole]     = useState('member')
-  const [memTitle,    setMemTitle]    = useState('')
-  const [memSaving,   setMemSaving]   = useState(false)
-  const [memMsg,      setMemMsg]      = useState('')
-
-  // ── Add existing user ─────────────────────────────────────
-  const [addEmail,   setAddEmail]   = useState('')
-  const [addRole,    setAddRole]    = useState('member')
-  const [addTitle,   setAddTitle]   = useState('')
-  const [addSaving,  setAddSaving]  = useState(false)
-  const [addMsg,     setAddMsg]     = useState('')
-
-  // ── Reset password ────────────────────────────────────────
-  const [resetId,       setResetId]       = useState('')
-  const [resetPwd,      setResetPwd]      = useState('')
-  const [showResetPwd,  setShowResetPwd]  = useState(false)
-  const [resetSaving,   setResetSaving]   = useState(false)
-  const [resetMsg,      setResetMsg]      = useState('')
+  // ── Invite a group member ─────────────────────────────────
+  const [invEmail,   setInvEmail]   = useState('')
+  const [invRole,    setInvRole]    = useState('member')
+  const [invTitle,   setInvTitle]   = useState('')
+  const [invSaving,  setInvSaving]  = useState(false)
+  const [invMsg,     setInvMsg]     = useState('')
 
   // ── Remove member ─────────────────────────────────────────
   const [removeSaving, setRemoveSaving] = useState<string | null>(null)
@@ -203,115 +171,28 @@ export default function AdminDashboard({
   const [cliDeleting,     setCliDeleting]     = useState<string | null>(null)
   const [editingClient,   setEditingClient]   = useState<any | null>(null)
 
-  function addCollabParty() { setCollabParties([...collabParties, '']) }
-  function updateCollabParty(i: number, v: string) {
-    const u = [...collabParties]; u[i] = v; setCollabParties(u)
-  }
-  function removeCollabParty(i: number) {
-    if (collabParties.length === 1) return
-    setCollabParties(collabParties.filter((_, j) => j !== i))
-  }
-
-  // When a CRM client is selected, auto-fill the free-text client field
-  function handleCrmClientSelect(clientId: string) {
-    setProjClientId(clientId)
-    if (clientId) {
-      const c = clients.find(c => c.id === clientId)
-      if (c) setProjClient(c.name)
-    } else {
-      setProjClient('')
-    }
-  }
-
-  async function createProject() {
-    if (!projName.trim() || !projClient.trim()) { setProjMsg('❌ Matter name and client are required'); return }
-    setProjSaving(true); setProjMsg('')
-    const parties = collabParties.map(p => p.trim()).filter(Boolean)
-    const { error } = await supabase.from('projects').insert({
-      name:                  encField(projName.trim(), groupKey) ?? projName.trim(),
-      client:                encField(projClient.trim(), groupKey) ?? projClient.trim(),
-      description:           encField(projDesc.trim() || null, groupKey),
-      status:                projStatus,
-      matter_type:           projMatterType || null,
-      agreement_party:       encField(projAgreement || null, groupKey),
-      service_fee_currency:  projCurrency,
-      service_fee_amount:    projAmount ? parseFloat(projAmount) : null,
-      collaboration_parties: parties.map((p: string) => encField(p, groupKey) ?? p),
-      client_id:             projClientId || null,
-      group_id:              groupId,
-      created_by:            profile.id,
-    })
-    if (error) {
-      setProjMsg(`❌ Creation failed: ${error.message}`)
-    } else {
-      setProjMsg('✅ Matter created')
-      setProjName(''); setProjClient(''); setProjClientId(''); setProjDesc('')
-      setProjStatus('active'); setProjMatterType(''); setProjAgreement('')
-      setProjCurrency(''); setProjAmount(''); setCollabParties([''])
-      setTimeout(() => router.push(`/${subdomain}/projects`), 800)
-    }
-    setProjSaving(false)
-  }
-
-  async function addExistingMember() {
-    if (!addEmail.trim()) { setAddMsg('❌ Please enter an email'); return }
-    setAddSaving(true); setAddMsg('')
-    const res = await fetch('/api/admin/add-existing-member', {
+  async function sendInvitation() {
+    if (!invEmail.trim()) { setInvMsg('❌ Email is required'); return }
+    setInvSaving(true); setInvMsg('')
+    const res = await fetch('/api/admin/send-invitation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ callerUserId: profile.id, email: addEmail.trim(), role: addRole, title: addTitle || null, groupId }),
+      body: JSON.stringify({
+        callerUserId: profile.id,
+        email:        invEmail.trim(),
+        role:         invRole,
+        title:        invTitle || null,
+        groupId,
+      }),
     })
     const json = await res.json()
     if (!res.ok) {
-      setAddMsg(`❌ ${json.error || 'Operation failed'}`)
+      setInvMsg(`❌ ${json.error || 'Failed to send invitation'}`)
     } else {
-      if (keyPair && isFirstAdmin && json.userId) {
-        addMemberToGroup(profile.id as string, groupId, keyPair, json.userId).catch(() => {})
-      }
-      setAddMsg(`✅ Added "${json.name}" to the team`)
-      setAddEmail(''); setAddTitle('')
-      setTimeout(() => router.refresh(), 800)
+      setInvMsg(`✅ Invitation sent to ${invEmail.trim()}`)
+      setInvEmail(''); setInvRole('member'); setInvTitle('')
     }
-    setAddSaving(false)
-  }
-
-  async function createMember() {
-    if (!memName.trim() || !memEmail.trim() || !memPassword) {
-      setMemMsg('❌ Name, email and password are required'); return
-    }
-    setMemSaving(true); setMemMsg('')
-    const res = await fetch('/api/admin/create-member', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ callerUserId: profile.id, name: memName.trim(), email: memEmail.trim(), password: memPassword, role: memRole, title: memTitle || null, groupId }),
-    })
-    const json = await res.json()
-    if (!res.ok) {
-      setMemMsg(`❌ ${json.error || 'Creation failed'}`)
-    } else {
-      if (keyPair && isFirstAdmin && json.newUserId) {
-        addMemberToGroup(profile.id as string, groupId, keyPair, json.newUserId).catch(() => {})
-      }
-      setMemMsg('✅ Member created')
-      setMemName(''); setMemEmail(''); setMemPassword(''); setMemRole('member'); setMemTitle('')
-      setTimeout(() => router.refresh(), 800)
-    }
-    setMemSaving(false)
-  }
-
-  async function resetPassword() {
-    if (!resetId || !resetPwd) { setResetMsg('❌ Select a member and enter a new password'); return }
-    if (resetPwd.length < 6) { setResetMsg('❌ Min 6 characters'); return }
-    setResetSaving(true); setResetMsg('')
-    const res = await fetch('/api/admin/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ callerUserId: profile.id, memberId: resetId, newPassword: resetPwd, groupId }),
-    })
-    const json = await res.json()
-    if (!res.ok) { setResetMsg(`❌ ${json.error || 'Operation failed'}`) }
-    else { setResetMsg('✅ Password reset'); setResetId(''); setResetPwd('') }
-    setResetSaving(false)
+    setInvSaving(false)
   }
 
   async function updateIntakeStatus(id: string, status: string) {
@@ -425,9 +306,11 @@ export default function AdminDashboard({
         </div>
 
         <div className="flex border-b border-gray-200 bg-white px-6 flex-shrink-0">
-          {(['projects', 'members', 'clients', 'intake'] as const).map(key => {
-            const label = key === 'projects' ? 'Matters' : key === 'members' ? 'Members'
-              : key === 'clients' ? 'Clients' : `Intake${intakes.filter(i => i.status === 'pending').length > 0 ? ` (${intakes.filter(i => i.status === 'pending').length})` : ''}`
+          {(['members', 'clients', 'intake'] as const).map(key => {
+            const pendingCount = intakes.filter(i => i.status === 'pending').length
+            const label = key === 'members' ? 'Members'
+              : key === 'clients' ? 'Clients'
+              : `Intake${pendingCount > 0 ? ` (${pendingCount})` : ''}`
             return (
               <button key={key} onClick={() => setTab(key)}
                 className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors
@@ -440,241 +323,39 @@ export default function AdminDashboard({
 
         <div className="flex-1 overflow-y-auto p-6">
 
-          {/* ──────── Matters ──────── */}
-          {tab === 'projects' && (
-            <div className="max-w-3xl space-y-6">
-              <section className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">Create matter</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-sm text-gray-700 mb-1">Matter name *</label>
-                    <input value={projName} onChange={e => setProjName(e.target.value)}
-                      placeholder="Matter name" className="input-field" />
-                  </div>
-
-                  {/* Client — CRM dropdown + free-text */}
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-sm text-gray-700 mb-1">Client *</label>
-                    {clients.length > 0 ? (
-                      <div className="space-y-2">
-                        <select
-                          value={projClientId}
-                          onChange={e => handleCrmClientSelect(e.target.value)}
-                          className="input-field"
-                        >
-                          <option value="">— Select CRM client or type below —</option>
-                          {clients.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
-                        <input value={projClient} onChange={e => { setProjClient(e.target.value); if (!e.target.value) setProjClientId('') }}
-                          placeholder="Or type client name" className="input-field" />
-                      </div>
-                    ) : (
-                      <input value={projClient} onChange={e => setProjClient(e.target.value)}
-                        placeholder="Client name" className="input-field" />
-                    )}
-                  </div>
-
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="block text-sm text-gray-700 mb-1">Matter type</label>
-                    <select value={projMatterType} onChange={e => setProjMatterType(e.target.value)} className="input-field">
-                      <option value="">Select (optional)</option>
-                      <option value="criminal">Criminal</option>
-                      <option value="corporate">Corporate</option>
-                      <option value="family">Family</option>
-                      <option value="ip">IP</option>
-                      <option value="real_estate">Real Estate</option>
-                      <option value="labor">Labor</option>
-                      <option value="administrative">Administrative</option>
-                      <option value="civil">Civil</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm text-gray-700 mb-1">Notes</label>
-                    <textarea value={projDesc} onChange={e => setProjDesc(e.target.value)}
-                      placeholder="Brief description (optional)" rows={2} className="input-field resize-none" />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Status</label>
-                    <select value={projStatus} onChange={e => setProjStatus(e.target.value)} className="input-field">
-                      <option value="active">Active</option>
-                      <option value="pending">Pending</option>
-                      <option value="cancelled">Declined</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Counterparty</label>
-                    <input value={projAgreement} onChange={e => setProjAgreement(e.target.value)}
-                      placeholder="Counterparty (optional)" className="input-field" />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Fee currency</label>
-                    <select value={projCurrency} onChange={e => setProjCurrency(e.target.value)} className="input-field">
-                      <option value="CNY">CNY</option>
-                      <option value="KRW">KRW</option>
-                      <option value="USD">USD</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Fee amount</label>
-                    <input type="number" min="0" step="0.01" value={projAmount}
-                      onChange={e => setProjAmount(e.target.value)} placeholder="Optional" className="input-field" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm text-gray-700 mb-1">Co-counsel</label>
-                    <div className="space-y-2">
-                      {collabParties.map((party, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <input value={party} onChange={e => updateCollabParty(i, e.target.value)}
-                            placeholder={`Co-counsel ${i + 1}`} className="input-field flex-1" />
-                          {collabParties.length > 1 && (
-                            <button onClick={() => removeCollabParty(i)}
-                              className="text-gray-400 hover:text-red-500 text-lg leading-none px-1" title="Remove">×</button>
-                          )}
-                        </div>
-                      ))}
-                      <button onClick={addCollabParty}
-                        className="flex items-center gap-1 text-sm text-teal-600 hover:text-teal-800 font-medium">
-                        <span className="text-lg leading-none">+</span> Add co-counsel
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                {projMsg && <p className="mt-3 text-sm">{projMsg}</p>}
-                <button onClick={createProject} disabled={projSaving} className="mt-4 btn-primary">
-                  {projSaving ? 'Creating…' : 'Create matter'}
-                </button>
-              </section>
-
-              <section className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">
-                  Matters <span className="text-gray-400 font-normal text-sm">({displayProjects.length})</span>
-                </h2>
-                <div className="space-y-2">
-                  {displayProjects.map((p: any) => (
-                    <div key={p.id} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
-                      <div>
-                        <div className="text-sm font-bold text-gray-900">{p.name}</div>
-                        <div className="text-xs text-gray-500 flex items-center gap-2">
-                          <span>Client: {p.client}</span>
-                          {p.client_id && (
-                            <span className="text-xs px-1.5 py-0.5 bg-teal-50 text-teal-600 rounded border border-teal-200">CRM</span>
-                          )}
-                        </div>
-                      </div>
-                      <span className={`status-tag st-${p.status}`}>{STATUS_LABELS[p.status]}</span>
-                    </div>
-                  ))}
-                  {displayProjects.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">No matters yet</p>}
-                </div>
-              </section>
-            </div>
-          )}
-
           {/* ──────── Members ──────── */}
           {tab === 'members' && (
             <div className="max-w-3xl space-y-6">
+              {/* ── Invite a group member ── */}
               <section className="bg-white rounded-xl border border-gray-200 p-6">
-                <h3 className="text-base font-semibold text-gray-900 mb-1">Add existing user</h3>
-                <p className="text-xs text-gray-500 mb-4">If they've already registered, add them to your team by email.</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2 sm:col-span-1">
-                    <input type="email" value={addEmail} onChange={e => setAddEmail(e.target.value)}
-                      placeholder="Their registered email" className="input-field" />
-                  </div>
-                  {isFirstAdmin && (
-                    <div>
-                      <select value={addRole} onChange={e => setAddRole(e.target.value)} className="input-field">
-                        <option value="member">Member</option>
-                        <option value="second_admin">Secondary Admin</option>
-                      </select>
-                    </div>
-                  )}
-                  <div>
-                    <select value={addTitle} onChange={e => setAddTitle(e.target.value)} className="input-field">
-                      {TITLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <button onClick={addExistingMember} disabled={addSaving} className="mt-3 btn-primary">
-                  {addSaving ? 'Adding…' : 'Add member'}
-                </button>
-                {addMsg && <p className="mt-2 text-sm">{addMsg}</p>}
-              </section>
-
-              <section className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">Create member</h2>
+                <h2 className="text-base font-semibold text-gray-900 mb-1">Invite a group member</h2>
+                <p className="text-xs text-gray-500 mb-4">
+                  An email with the team name and a 6-digit code will be sent to the invitee.
+                  They register on Teaming365 and enter those details to join.
+                </p>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Name *</label>
-                    <input value={memName} onChange={e => setMemName(e.target.value)}
-                      placeholder="Display name" className="input-field" />
-                  </div>
-                  <div>
+                  <div className="col-span-2 sm:col-span-1">
                     <label className="block text-sm text-gray-700 mb-1">Email *</label>
-                    <input type="email" value={memEmail} onChange={e => setMemEmail(e.target.value)}
-                      placeholder="member@example.com" className="input-field" />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Password *</label>
-                    <div className="relative">
-                      <input type={showMemPwd ? 'text' : 'password'} value={memPassword}
-                        onChange={e => setMemPassword(e.target.value)}
-                        placeholder="Min 6 characters" className="input-field pr-14" />
-                      <button type="button" onClick={() => setShowMemPwd(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-700">
-                        {showMemPwd ? 'Hide' : 'Show'}
-                      </button>
-                    </div>
+                    <input type="email" value={invEmail} onChange={e => setInvEmail(e.target.value)}
+                      placeholder="colleague@example.com" className="input-field" />
                   </div>
                   <div>
                     <label className="block text-sm text-gray-700 mb-1">Role</label>
-                    <select value={memRole} onChange={e => setMemRole(e.target.value)} className="input-field">
+                    <select value={invRole} onChange={e => setInvRole(e.target.value)} className="input-field">
                       <option value="member">Member</option>
                       {isFirstAdmin && <option value="second_admin">Secondary Admin</option>}
                     </select>
                   </div>
                   <div className="col-span-2 sm:col-span-1">
                     <label className="block text-sm text-gray-700 mb-1">Professional title</label>
-                    <select value={memTitle} onChange={e => setMemTitle(e.target.value)} className="input-field">
+                    <select value={invTitle} onChange={e => setInvTitle(e.target.value)} className="input-field">
                       {TITLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                 </div>
-                {memMsg && <p className="mt-3 text-sm">{memMsg}</p>}
-                <button onClick={createMember} disabled={memSaving} className="mt-4 btn-primary">
-                  {memSaving ? 'Creating…' : 'Create member'}
-                </button>
-              </section>
-
-              <section className="bg-white rounded-xl border border-gray-200 p-6">
-                <h2 className="text-base font-semibold text-gray-900 mb-4">Reset member password</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">Select member</label>
-                    <select value={resetId} onChange={e => setResetId(e.target.value)} className="input-field">
-                      <option value="">— Select —</option>
-                      {members.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-700 mb-1">New password</label>
-                    <div className="relative">
-                      <input type={showResetPwd ? 'text' : 'password'} value={resetPwd}
-                        onChange={e => setResetPwd(e.target.value)}
-                        placeholder="Min 6 characters" className="input-field pr-14" />
-                      <button type="button" onClick={() => setShowResetPwd(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-700">
-                        {showResetPwd ? 'Hide' : 'Show'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                {resetMsg && <p className="mt-3 text-sm">{resetMsg}</p>}
-                <button onClick={resetPassword} disabled={resetSaving} className="mt-4 btn-primary">
-                  {resetSaving ? 'Processing…' : 'Reset password'}
+                {invMsg && <p className="mt-3 text-sm">{invMsg}</p>}
+                <button onClick={sendInvitation} disabled={invSaving} className="mt-4 btn-primary">
+                  {invSaving ? 'Sending…' : 'Send an invitation'}
                 </button>
               </section>
 

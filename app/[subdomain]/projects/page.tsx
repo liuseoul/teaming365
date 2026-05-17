@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 export const runtime = 'edge'
 
-import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -17,7 +16,9 @@ export default async function SubdomainProjectsPage({
   const { subdomain } = await params
   const { _uid } = await searchParams
 
-  // Prefer _uid param, then qt_uid cookie, then Clerk auth() as last resort
+  // Prefer _uid param, then qt_uid cookie, then Clerk auth() as last resort.
+  // auth() is a lazy dynamic import so Clerk server SDK never loads on the
+  // Cloudflare Workers edge runtime unless it is actually needed.
   let userId: string | null = _uid || null
   if (!userId) {
     const cookieStore = await cookies()
@@ -26,8 +27,13 @@ export default async function SubdomainProjectsPage({
       : null
   }
   if (!userId) {
-    const { userId: clerkUserId } = await auth()
-    userId = clerkUserId
+    try {
+      const { auth } = await import('@clerk/nextjs/server')
+      const { userId: clerkUserId } = await auth()
+      userId = clerkUserId
+    } catch {
+      // Clerk auth unavailable on this runtime — fall through to redirect
+    }
   }
   if (!userId) redirect('/login')
 
@@ -54,9 +60,8 @@ export default async function SubdomainProjectsPage({
     .from('projects')
     .select(`
       id, name, client, description, status, created_at, updated_at,
-      agreement_party, service_fee_currency, service_fee_amount, collaboration_parties,
-      work_records(id, created_at, deleted, profiles!work_records_author_id_fkey(name)),
-      time_logs(id, started_at, finished_at, deleted, profiles!time_logs_member_id_fkey(name))
+      work_records(id, created_at, deleted),
+      time_logs(id, started_at, finished_at, deleted)
     `)
     .eq('group_id', group.id)
     .order('created_at', { ascending: false })

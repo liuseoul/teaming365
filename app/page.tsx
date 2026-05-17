@@ -3,7 +3,6 @@ export const runtime = 'edge'
 
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
-import { auth } from '@clerk/nextjs/server'
 
 export default async function RootPage() {
   // Check qt_uid cookie first (avoids Clerk JWKS hang on Cloudflare edge)
@@ -13,6 +12,7 @@ export default async function RootPage() {
     : null
   if (!userId) {
     try {
+      const { auth } = await import('@clerk/nextjs/server')
       const { userId: clerkUserId } = await auth()
       userId = clerkUserId
     } catch {

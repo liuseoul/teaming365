@@ -4,7 +4,6 @@ export const runtime = 'edge'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
-import { auth } from '@clerk/nextjs/server'
 
 /**
  * Legacy redirect: /admin → /{subdomain}/admin
@@ -17,8 +16,13 @@ export default async function AdminRedirect() {
     ? decodeURIComponent(cookieStore.get('qt_uid')!.value)
     : null
   if (!userId) {
-    const { userId: clerkUserId } = await auth()
-    userId = clerkUserId
+    try {
+      const { auth } = await import('@clerk/nextjs/server')
+      const { userId: clerkUserId } = await auth()
+      userId = clerkUserId
+    } catch {
+      // Clerk auth unavailable on this runtime — fall through to redirect
+    }
   }
   if (!userId) redirect('/login')
 

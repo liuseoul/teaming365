@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 export const runtime = 'edge'
 
-import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -26,8 +25,13 @@ export default async function SubdomainAdminPage({
       : null
   }
   if (!userId) {
-    const { userId: clerkUserId } = await auth()
-    userId = clerkUserId
+    try {
+      const { auth } = await import('@clerk/nextjs/server')
+      const { userId: clerkUserId } = await auth()
+      userId = clerkUserId
+    } catch {
+      // Clerk auth unavailable on this runtime — fall through to redirect
+    }
   }
   if (!userId) redirect('/login')
 
