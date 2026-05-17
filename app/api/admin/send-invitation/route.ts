@@ -1,10 +1,10 @@
 export const runtime = 'edge'
 
 /**
- * Send a team invitation email with a random 6-digit code.
+ * Create a team invitation with a random 6-digit code.
+ * The code is returned to the admin to share manually (no email required).
  *
- * Required Supabase table (run once in your DB):
- *
+ * Required Supabase table:
  *   CREATE TABLE group_invitations (
  *     id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  *     group_id   uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
@@ -17,9 +17,6 @@ export const runtime = 'edge'
  *     used_at    timestamptz,
  *     UNIQUE (group_id, email)
  *   );
- *
- * Required env vars:
- *   RESEND_API_KEY  — from resend.com
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -46,7 +43,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Not authorised' }, { status: 403 })
   }
 
-  // Fetch group name for the email
+  // Fetch group name
   const { data: group } = await supabase
     .from('groups').select('name').eq('id', groupId).single()
 
@@ -57,7 +54,7 @@ export async function POST(req: Request) {
   // Generate a 6-digit numeric code
   const code = String(Math.floor(100000 + Math.random() * 900000))
 
-  // Upsert invitation — replaces any existing pending invite for this email+group
+  // Upsert — replaces any existing pending invite for this email+group
   const { error: invError } = await supabase.from('group_invitations').upsert(
     {
       group_id:   groupId,
@@ -79,56 +76,6 @@ export async function POST(req: Request) {
     )
   }
 
-  // Send email via Resend REST API
-  const emailBody = {
-    from:    'Teaming365 <onboarding@resend.dev>',
-    to:      normalizedEmail,
-    subject: `You've been invited to join ${group.name} on Teaming365`,
-    html: `
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:40px 24px;background:#fff;">
-  <h1 style="font-size:22px;font-weight:700;color:#111827;margin:0 0 8px;">You're invited!</h1>
-  <p style="color:#6b7280;font-size:15px;line-height:1.6;margin:0 0 28px;">
-    You have been invited to join <strong>${group.name}</strong> on <strong>Teaming365</strong>.
-  </p>
-
-  <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:20px 24px;margin-bottom:28px;">
-    <p style="margin:0 0 10px;font-size:11px;color:#0d9488;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Your invitation details</p>
-    <p style="margin:0 0 8px;font-size:14px;color:#374151;">Team name: <strong>${group.name}</strong></p>
-    <p style="margin:0;font-size:14px;color:#374151;">
-      Invitation code:
-      <strong style="display:inline-block;margin-left:8px;font-size:30px;letter-spacing:0.18em;color:#0d9488;font-weight:700;">${code}</strong>
-    </p>
-  </div>
-
-  <p style="color:#374151;font-size:14px;font-weight:600;margin:0 0 6px;">How to join:</p>
-  <ol style="color:#6b7280;font-size:14px;line-height:1.9;padding-left:18px;margin:0 0 28px;">
-    <li>Go to <a href="https://teaming365.com/login" style="color:#0d9488;text-decoration:none;">teaming365.com/login</a> and register using <strong>${normalizedEmail}</strong></li>
-    <li>After signing up, choose <em>"Join a team by invitation"</em></li>
-    <li>Enter the team name and the 6-digit code above</li>
-  </ol>
-
-  <p style="color:#9ca3af;font-size:12px;margin:0;">This invitation expires in 7 days. If you did not expect this email, you can safely ignore it.</p>
-</div>
-`,
-  }
-
-  const emailRes = await fetch('https://api.resend.com/emails', {
-    method:  'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type':  'application/json',
-    },
-    body: JSON.stringify(emailBody),
-  })
-
-  if (!emailRes.ok) {
-    const errJson = await emailRes.json().catch(() => ({}))
-    const errMsg  = (errJson as any).message || `HTTP ${emailRes.status}`
-    return NextResponse.json(
-      { error: `Invitation saved but email failed to send: ${errMsg}` },
-      { status: 500 }
-    )
-  }
-
-  return NextResponse.json({ ok: true })
+  // Return the code to the admin — no email service needed
+  return NextResponse.json({ ok: true, code, groupName: group.name })
 }

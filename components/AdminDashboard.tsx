@@ -144,11 +144,13 @@ export default function AdminDashboard({
   }, [keyPair, e2eReady, isFirstAdmin])
 
   // ── Invite a group member ─────────────────────────────────
-  const [invEmail,   setInvEmail]   = useState('')
-  const [invRole,    setInvRole]    = useState('member')
-  const [invTitle,   setInvTitle]   = useState('')
-  const [invSaving,  setInvSaving]  = useState(false)
-  const [invMsg,     setInvMsg]     = useState('')
+  const [invEmail,     setInvEmail]     = useState('')
+  const [invRole,      setInvRole]      = useState('member')
+  const [invTitle,     setInvTitle]     = useState('')
+  const [invSaving,    setInvSaving]    = useState(false)
+  const [invMsg,       setInvMsg]       = useState('')
+  const [invCode,      setInvCode]      = useState<string | null>(null)
+  const [invCodeEmail, setInvCodeEmail] = useState('')
 
   // ── Remove member ─────────────────────────────────────────
   const [removeSaving, setRemoveSaving] = useState<string | null>(null)
@@ -173,7 +175,7 @@ export default function AdminDashboard({
 
   async function sendInvitation() {
     if (!invEmail.trim()) { setInvMsg('❌ Email is required'); return }
-    setInvSaving(true); setInvMsg('')
+    setInvSaving(true); setInvMsg(''); setInvCode(null)
     const res = await fetch('/api/admin/send-invitation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -187,9 +189,10 @@ export default function AdminDashboard({
     })
     const json = await res.json()
     if (!res.ok) {
-      setInvMsg(`❌ ${json.error || 'Failed to send invitation'}`)
+      setInvMsg(`❌ ${json.error || 'Failed to create invitation'}`)
     } else {
-      setInvMsg(`✅ Invitation sent to ${invEmail.trim()}`)
+      setInvCode(json.code)
+      setInvCodeEmail(invEmail.trim())
       setInvEmail(''); setInvRole('member'); setInvTitle('')
     }
     setInvSaving(false)
@@ -330,8 +333,8 @@ export default function AdminDashboard({
               <section className="bg-white rounded-xl border border-gray-200 p-6">
                 <h2 className="text-base font-semibold text-gray-900 mb-1">Invite a group member</h2>
                 <p className="text-xs text-gray-500 mb-4">
-                  An email with the team name and a 6-digit code will be sent to the invitee.
-                  They register on Teaming365 and enter those details to join.
+                  A 6-digit invitation code will be generated. Share the team name and code
+                  with the invitee via any channel — they enter both when registering.
                 </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2 sm:col-span-1">
@@ -355,8 +358,44 @@ export default function AdminDashboard({
                 </div>
                 {invMsg && <p className="mt-3 text-sm">{invMsg}</p>}
                 <button onClick={sendInvitation} disabled={invSaving} className="mt-4 btn-primary">
-                  {invSaving ? 'Sending…' : 'Send an invitation'}
+                  {invSaving ? 'Generating…' : 'Generate invitation code'}
                 </button>
+
+                {/* ── Code display card ── */}
+                {invCode && (
+                  <div className="mt-5 bg-teal-50 border border-teal-200 rounded-xl p-4 space-y-3">
+                    <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide">
+                      Invitation ready — share these details with your invitee
+                    </p>
+                    <div className="space-y-1.5 text-sm text-gray-700">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">For:</span>
+                        <span className="font-mono text-gray-800">{invCodeEmail}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Team name:</span>
+                        <span className="font-semibold text-gray-800">{group.name}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">Code:</span>
+                        <span className="font-mono font-bold text-2xl tracking-widest text-teal-700">
+                          {invCode}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          `Team: ${group.name}\nInvitation code: ${invCode}\nRegister at: teaming365.com/login`
+                        )
+                      }}
+                      className="w-full py-2 text-xs font-medium text-teal-700 bg-white border border-teal-300 rounded-lg hover:bg-teal-50 transition-colors"
+                    >
+                      Copy to clipboard
+                    </button>
+                    <p className="text-xs text-gray-400">Expires in 7 days. Invite another member to generate a new code.</p>
+                  </div>
+                )}
               </section>
 
               <section className="bg-white rounded-xl border border-gray-200 p-6">
