@@ -47,7 +47,9 @@ export default function PendingPage() {
       })
       const json = await res.json()
       if (!res.ok) { setCreateMsg(`❌ ${json.error || 'Creation failed'}`); return }
-      window.location.href = `/${json.subdomain}/projects`
+      // Set qt_uid cookie + _uid param so the server page never calls auth()
+      if (userId) document.cookie = `qt_uid=${encodeURIComponent(userId)}; path=/; max-age=86400; SameSite=Lax`
+      window.location.href = `/${json.subdomain}/projects?_uid=${encodeURIComponent(userId ?? '')}`
     } catch {
       setCreateMsg('❌ Network error — please try again')
     } finally {

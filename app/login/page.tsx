@@ -276,7 +276,10 @@ export default function LoginPage() {
         }
         return
       }
-      window.location.href = `/${json.subdomain}/projects`
+      // Set qt_uid cookie + _uid param so the server page never calls auth()
+      const uid = regClerkUserId
+      if (uid) document.cookie = `qt_uid=${encodeURIComponent(uid)}; path=/; max-age=86400; SameSite=Lax`
+      window.location.href = `/${json.subdomain}/projects?_uid=${encodeURIComponent(uid)}`
     } catch {
       setRegGroupMsg('❌ Network error — please try again')
     } finally {
