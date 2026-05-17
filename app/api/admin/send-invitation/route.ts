@@ -81,7 +81,7 @@ export async function POST(req: Request) {
 
   // Send email via Resend REST API
   const emailBody = {
-    from:    'Teaming365 <noreply@teaming365.com>',
+    from:    'Teaming365 <onboarding@resend.dev>',
     to:      normalizedEmail,
     subject: `You've been invited to join ${group.name} on Teaming365`,
     html: `
